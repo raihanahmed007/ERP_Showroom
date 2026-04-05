@@ -1,0 +1,62 @@
+@page "/accounting/trial-balance"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+
+<MudText Typo="Typo.h4" GutterBottom="true">Trial Balance</MudText>
+
+<MudPaper Class="pa-6" Elevation="3">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudDatePicker Label="Report Period" @bind-Date="reportDate" OpenTo="OpenTo.Year" FixDay="1" />
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="LoadReport" Disabled="@isLoading">
+                @if (isLoading) { <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" /> }
+                Generate Report
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (entries.Any())
+{
+    <MudPaper Class="pa-6 mt-4" Elevation="3">
+        <MudTable Items="@entries" Hover="true" Dense="true" Striped="true" FixedHeader="true" Height="500px">
+            <HeaderContent>
+                <MudTh>Account Code</MudTh>
+                <MudTh>Account Name</MudTh>
+                <MudTh Style="text-align:right">Debit</MudTh>
+                <MudTh Style="text-align:right">Credit</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Code</MudTd>
+                <MudTd>@context.Name</MudTd>
+                <MudTd Style="text-align:right">@(context.Debit > 0 ? context.Debit.ToString("N2") : "—")</MudTd>
+                <MudTd Style="text-align:right">@(context.Credit > 0 ? context.Credit.ToString("N2") : "—")</MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTd colspan="2"><MudText Align="Align.Right"><strong>Totals:</strong></MudText></MudTd>
+                <MudTd Style="text-align:right"><strong>@entries.Sum(e => e.Debit).ToString("N2")</strong></MudTd>
+                <MudTd Style="text-align:right"><strong>@entries.Sum(e => e.Credit).ToString("N2")</strong></MudTd>
+            </FooterContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    DateTime? reportDate = DateTime.Today;
+    bool isLoading;
+    List<TrialBalanceEntryDto> entries = new();
+
+    async Task LoadReport()
+    {
+        if (reportDate == null) return;
+        isLoading = true;
+        entries = await ApiClient.GetAsync<List<TrialBalanceEntryDto>>($"accounting/trial-balance?periodId={reportDate.Value:yyyyMM}") ?? new();
+        isLoading = false;
+    }
+
+    public class TrialBalanceEntryDto { public string Code { get; set; } = ""; public string Name { get; set; } = ""; public decimal Debit { get; set; } public decimal Credit { get; set; } }
+}

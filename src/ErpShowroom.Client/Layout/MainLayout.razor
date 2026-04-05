@@ -1,0 +1,33 @@
+<MudLayout>
+    <MudAppBar Elevation="1" Color="MudBlazor.Color.Primary">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="MudBlazor.Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <MudText Typo="Typo.h5" Class="ml-3">ERP Showroom</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudText Typo="Typo.subtitle1" Class="mr-4">@context.User.Identity?.Name</MudText>
+                <MudButton Variant="Variant.Text" Color="MudBlazor.Color.Inherit" OnClick="Logout">Logout</MudButton>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Text" Color="MudBlazor.Color.Inherit" Href="/login">Login</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4 pt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+    <MudSnackbarProvider />
+</MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+    [Inject] IApiClient ApiClient { get; set; } = default!;
+
+    void DrawerToggle() => _drawerOpen = !_drawerOpen;
+    void Logout() => ApiClient.LogoutAsync();
+}

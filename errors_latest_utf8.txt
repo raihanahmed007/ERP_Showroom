@@ -1,0 +1,11 @@
+﻿MSBUILD : warning MSB4010: The "*.tasks" files could not be successfully loaded from their expected location "C:\Program Files\dotnet\sdk\10.0.102". Default tasks will not be available.  [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\ErpShowroom.slnx.metaproj : error MSB4036: The "Message" task was not found. Check the following: 1.) The name of the task in the project file is the same as the name of the task class. 2.) The task class is "public" and implements the Microsoft.Build.Framework.ITask interface. 3.) The task is correctly declared with <UsingTask> in the project file, or in the *.tasks files located in the "C:\Program Files\dotnet\sdk\10.0.102" directory. [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+
+Build FAILED.
+
+MSBUILD : warning MSB4010: The "*.tasks" files could not be successfully loaded from their expected location "C:\Program Files\dotnet\sdk\10.0.102". Default tasks will not be available.  [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\ErpShowroom.slnx.metaproj : error MSB4036: The "Message" task was not found. Check the following: 1.) The name of the task in the project file is the same as the name of the task class. 2.) The task class is "public" and implements the Microsoft.Build.Framework.ITask interface. 3.) The task is correctly declared with <UsingTask> in the project file, or in the *.tasks files located in the "C:\Program Files\dotnet\sdk\10.0.102" directory. [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+    1 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.11

@@ -1,0 +1,138 @@
+@page "/workshop/job-cards/create"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<MudText Typo="Typo.h4" GutterBottom="true">New Job Card</MudText>
+
+<MudPaper Class="pa-8" Elevation="3">
+    <MudForm @ref="form" Valid="@isValid" @bind-IsValid="@isValid">
+        <MudText Typo="Typo.h6" Class="mb-4">Customer & Vehicle</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudAutocomplete T="CustomerSearchDto" Label="Customer" @bind-Value="selectedCustomer"
+                                 SearchFunc="@SearchCustomers"
+                                 ToStringFunc="@(c => c==null ? null : $"{c.Name} ({c.Phone})")"
+                                 Required="true" RequiredError="Customer is required" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" Label="Vehicle VIN" @bind-Value="jobCard.VehicleVin" Required="true" RequiredError="VIN is required" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField T="int" Label="Received Odometer (km)" @bind-Value="jobCard.ReceivedOdometer" Min="0" Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" Label="Customer Complaint" @bind-Value="jobCard.CustomerComplaint" Lines="3" Required="true" RequiredError="Complaint is required" />
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-6" />
+
+        <div class="d-flex align-center justify-space-between mb-4">
+            <MudText Typo="Typo.h6">Service Lines</MudText>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="MudBlazor.Color.Info" Variant="Variant.Text" OnClick="AddServiceLine">Add Service</MudButton>
+        </div>
+
+        <MudTable Items="@jobCard.ServiceLines" Hover="true" Dense="true" Elevation="0">
+            <HeaderContent>
+                <MudTh>Service Name</MudTh>
+                <MudTh>Standard Time (hrs)</MudTh>
+                <MudTh>Labor Charge</MudTh>
+                <MudTh Style="width: 60px;">Action</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <MudTextField T="string" @bind-Value="context.ServiceName" Required="true" Dense="true" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd>
+                    <MudNumericField T="decimal" @bind-Value="context.StandardTime" Min="0" Format="N1" HideSpinButtons="true" Dense="true" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd>
+                    <MudNumericField T="decimal" @bind-Value="context.LaborCharge" Min="0" Format="N2" HideSpinButtons="true" Dense="true" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="MudBlazor.Color.Error" Size="Size.Small" OnClick="@(() => RemoveServiceLine(context))" Disabled="@(jobCard.ServiceLines.Count <= 1)" />
+                </MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTd colspan="2"><MudText Align="Align.Right"><strong>Total Labor:</strong></MudText></MudTd>
+                <MudTd><strong>@jobCard.ServiceLines.Sum(s => s.LaborCharge).ToString("N2")</strong></MudTd>
+                <MudTd></MudTd>
+            </FooterContent>
+        </MudTable>
+
+        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="SubmitJobCard"
+                   Disabled="@(!isValid || isSubmitting)" Class="mt-6">
+            @if (isSubmitting)
+            {
+                <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+            }
+            Create Job Card
+        </MudButton>
+    </MudForm>
+</MudPaper>
+
+@code {
+    MudForm? form;
+    bool isValid;
+    bool isSubmitting;
+    CustomerSearchDto? selectedCustomer;
+    CreateJobCardDto jobCard = new() { ServiceLines = new List<ServiceLineDto> { new() } };
+
+    async Task<IEnumerable<CustomerSearchDto>> SearchCustomers(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value)) return new List<CustomerSearchDto>();
+        return await ApiClient.GetAsync<List<CustomerSearchDto>>($"customers/search?term={value}") ?? new List<CustomerSearchDto>();
+    }
+
+    void AddServiceLine() => jobCard.ServiceLines.Add(new());
+    void RemoveServiceLine(ServiceLineDto line)
+    {
+        if (jobCard.ServiceLines.Count > 1) jobCard.ServiceLines.Remove(line);
+    }
+
+    async Task SubmitJobCard()
+    {
+        await form!.Validate();
+        if (form.IsValid && selectedCustomer != null)
+        {
+            isSubmitting = true;
+            try
+            {
+                jobCard.CustomerId = selectedCustomer.Id;
+                var response = await ApiClient.PostAsync("workshop/job-cards", jobCard);
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Job card created successfully!", Severity.Success);
+                    NavigationManager.NavigateTo("/workshop/job-cards/create");
+                    jobCard = new() { ServiceLines = new List<ServiceLineDto> { new() } };
+                    selectedCustomer = null;
+                }
+                else
+                {
+                    Snackbar.Add("Failed to create job card", Severity.Error);
+                }
+            }
+            finally { isSubmitting = false; }
+        }
+    }
+
+    public class CustomerSearchDto { public int Id { get; set; } public string Name { get; set; } = ""; public string Phone { get; set; } = ""; }
+    public class CreateJobCardDto
+    {
+        public int CustomerId { get; set; }
+        public string VehicleVin { get; set; } = "";
+        public int ReceivedOdometer { get; set; }
+        public string CustomerComplaint { get; set; } = "";
+        public List<ServiceLineDto> ServiceLines { get; set; } = new();
+    }
+    public class ServiceLineDto
+    {
+        public string ServiceName { get; set; } = "";
+        public decimal StandardTime { get; set; }
+        public decimal LaborCharge { get; set; }
+    }
+}

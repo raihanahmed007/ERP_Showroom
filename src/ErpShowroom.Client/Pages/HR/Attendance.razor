@@ -1,0 +1,70 @@
+@page "/hr/attendance"
+@attribute [Authorize]
+@using Microsoft.JSInterop
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">Attendance Check-in</MudText>
+
+<MudPaper Class="pa-8">
+    <MudText Typo="Typo.subtitle1">Location: @(latitude != null ? $"{latitude}, {longitude}" : "Detecting...")</MudText>
+    <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="CheckIn" Disabled="@(latitude == null)" Class="mt-4">Check In</MudButton>
+
+    <MudTable Items="@history" Hover="true" Class="mt-8">
+        <HeaderContent>
+            <MudTh>Time</MudTh>
+            <MudTh>Latitude</MudTh>
+            <MudTh>Longitude</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.CheckInTime.ToLocalTime().ToString("HH:mm:ss")</MudTd>
+            <MudTd>@context.Latitude</MudTd>
+            <MudTd>@context.Longitude</MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    double? latitude;
+    double? longitude;
+    List<AttendanceDto> history = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetLocation();
+        await LoadHistory();
+    }
+
+    async Task GetLocation()
+    {
+        try
+        {
+            var coords = await JS.InvokeAsync<Coordinates>("window.getGeolocation");
+            latitude = coords.Latitude;
+            longitude = coords.Longitude;
+            StateHasChanged();
+        }
+        catch { Snackbar.Add("Permission denied for location access", Severity.Error); }
+    }
+
+    async Task LoadHistory()
+    {
+        history = await ApiClient.GetAsync<List<AttendanceDto>>("hr/attendance/today") ?? new();
+    }
+
+    async Task CheckIn()
+    {
+        var response = await ApiClient.PostAsync("hr/attendance", new { CheckInTime = DateTime.UtcNow, Latitude = latitude, Longitude = longitude });
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Checked in successfully", Severity.Success);
+            await LoadHistory();
+        }
+    }
+
+    public class Coordinates { public double Latitude { get; set; } public double Longitude { get; set; } }
+    public class AttendanceDto { public DateTime CheckInTime { get; set; } public double Latitude { get; set; } public double Longitude { get; set; } }
+}

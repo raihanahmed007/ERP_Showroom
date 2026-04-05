@@ -1,0 +1,81 @@
+@page "/agreements"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@inject NavigationManager NavigationManager
+
+<MudText Typo="Typo.h4" GutterBottom="true">HP Agreements</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="3">
+    <div class="d-flex justify-space-between align-center">
+        <MudTextField T="string" @bind-Value="searchTerm" Placeholder="Search agreements..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" />
+        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick='@(() => NavigationManager.NavigateTo("/agreements/create"))' Class="ml-4">New Agreement</MudButton>
+    </div>
+</MudPaper>
+
+<MudTable Items="@FilteredAgreements" Hover="true" Striped="true" Loading="@isLoading" Elevation="3">
+    <HeaderContent>
+        <MudTh>Agreement No</MudTh>
+        <MudTh>Customer</MudTh>
+        <MudTh>Product</MudTh>
+        <MudTh Style="text-align:right">Total Amount</MudTh>
+        <MudTh Style="text-align:right">Down Payment</MudTh>
+        <MudTh>Installments</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Created</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.AgreementNo</MudTd>
+        <MudTd>@context.CustomerName</MudTd>
+        <MudTd>@context.ProductName</MudTd>
+        <MudTd Style="text-align:right">@context.TotalAmount.ToString("N2")</MudTd>
+        <MudTd Style="text-align:right">@context.DownPayment.ToString("N2")</MudTd>
+        <MudTd>@context.InstallmentCount</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip>
+        </MudTd>
+        <MudTd>@context.CreatedAt.ToShortDateString()</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    List<AgreementDto> agreements = new();
+    bool isLoading = true;
+    string searchTerm = "";
+
+    IEnumerable<AgreementDto> FilteredAgreements => string.IsNullOrWhiteSpace(searchTerm)
+        ? agreements
+        : agreements.Where(a =>
+            a.AgreementNo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            a.CustomerName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        agreements = await ApiClient.GetAsync<List<AgreementDto>>("agreements") ?? new();
+        isLoading = false;
+    }
+
+    MudBlazor.Color GetStatusColor(string status) => status switch
+    {
+        "Active" => MudBlazor.Color.Success,
+        "Completed" => MudBlazor.Color.Info,
+        "Defaulted" => MudBlazor.Color.Error,
+        _ => MudBlazor.Color.Default
+    };
+
+    public class AgreementDto
+    {
+        public string AgreementNo { get; set; } = "";
+        public string CustomerName { get; set; } = "";
+        public string ProductName { get; set; } = "";
+        public decimal TotalAmount { get; set; }
+        public decimal DownPayment { get; set; }
+        public int InstallmentCount { get; set; }
+        public string Status { get; set; } = "";
+        public DateTime CreatedAt { get; set; }
+    }
+}

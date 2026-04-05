@@ -1,0 +1,111 @@
+@page "/emi/payments"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@using System.Security.Claims
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+
+<MudText Typo="Typo.h4" GutterBottom="true">EMI Collections</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6">Overdue EMIs</MudText>
+</MudPaper>
+
+<MudTable Items="@overdueEmis" Hover="true" Loading="@isLoading">
+    <HeaderContent>
+        <MudTh>Agreement No</MudTh>
+        <MudTh>Customer Name</MudTh>
+        <MudTh>Due Date</MudTh>
+        <MudTh>Total Due</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.AgreementNo</MudTd>
+        <MudTd>@context.CustomerName</MudTd>
+        <MudTd>@context.DueDate.ToShortDateString()</MudTd>
+        <MudTd>@context.TotalDue.ToString("C")</MudTd>
+        <MudTd>
+            <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" Size="Size.Small" OnClick="@(() => OpenPaymentDialog(context))">Collect</MudButton>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@if (selectedEmi != null)
+{
+    <MudDialog IsVisible="true" Options="dialogOptions">
+        <DialogContent>
+            <MudText Typo="Typo.h6">Collect Payment - @selectedEmi.CustomerName</MudText>
+            <MudNumericField T="decimal" Label="Amount" @bind-Value="payment.Amount" Required="true" Class="mt-4" />
+            <MudSelect T="string" Label="Payment Method" @bind-Value="payment.PaymentMethod" Required="true" Class="mt-4">
+                <MudSelectItem Value="@("Cash")">Cash</MudSelectItem>
+                <MudSelectItem Value="@("BankTransfer")">Bank Transfer</MudSelectItem>
+                <MudSelectItem Value="@("MobileMoney")">Mobile Money</MudSelectItem>
+            </MudSelect>
+            <MudTextField T="string" Label="Reference No (Optional)" @bind-Value="payment.ReferenceNo" Class="mt-4" />
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="CloseDialog">Cancel</MudButton>
+            <MudButton Color="MudBlazor.Color.Primary" OnClick="SubmitPayment">Submit</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    List<EmiDto> overdueEmis = new();
+    bool isLoading = true;
+    EmiDto? selectedEmi;
+    PaymentDto payment = new();
+    DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+    string? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (currentUserId != null)
+        {
+            await LoadOverdueEmis();
+        }
+    }
+
+    async Task LoadOverdueEmis()
+    {
+        isLoading = true;
+        overdueEmis = await ApiClient.GetAsync<List<EmiDto>>($"emi/overdue?collectorId={currentUserId}") ?? new();
+        isLoading = false;
+    }
+
+    void OpenPaymentDialog(EmiDto emi)
+    {
+        selectedEmi = emi;
+        payment = new PaymentDto { EmiId = emi.Id, Amount = emi.TotalDue };
+    }
+
+    void CloseDialog()
+    {
+        selectedEmi = null;
+    }
+
+    async Task SubmitPayment()
+    {
+        if (selectedEmi == null) return;
+
+        var response = await ApiClient.PostAsync("emi/payments", payment);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Payment collected successfully", Severity.Success);
+            CloseDialog();
+            await LoadOverdueEmis();
+        }
+        else
+        {
+            Snackbar.Add("Failed to process payment", Severity.Error);
+        }
+    }
+
+    public class EmiDto { public int Id { get; set; } public string AgreementNo { get; set; } = ""; public string CustomerName { get; set; } = ""; public DateTime DueDate { get; set; } public decimal TotalDue { get; set; } }
+    public class PaymentDto { public int EmiId { get; set; } public decimal Amount { get; set; } public string PaymentMethod { get; set; } = "Cash"; public string? ReferenceNo { get; set; } }
+}

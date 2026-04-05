@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src\ErpShowroom.Domain\ErpShowroom.Domain.csproj" />
+    <Project Path="src\ErpShowroom.Application\ErpShowroom.Application.csproj" />
+    <Project Path="src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj" />
+    <Project Path="src\ErpShowroom.API\ErpShowroom.API.csproj" />
+    <Project Path="src\ErpShowroom.Client\ErpShowroom.Client.csproj" />
+  </Folder>
+</Solution>

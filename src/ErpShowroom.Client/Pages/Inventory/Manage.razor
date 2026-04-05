@@ -1,0 +1,144 @@
+@page "/inventory"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+
+<MudTabs Elevation="4" Rounded="true" Color="MudBlazor.Color.Primary" ApplyEffectsToContainer="true" PanelClass="pa-6">
+    <MudTabPanel Text="Product List">
+        <MudTable Items="@products" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@loading">
+            <HeaderContent>
+                <MudTh>Code</MudTh>
+                <MudTh>Name</MudTh>
+                <MudTh>Price</MudTh>
+                <MudTh>Stock Balance</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Code">@context.Code</MudTd>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+                <MudTd DataLabel="Price">@context.Price.ToString("N2")</MudTd>
+                <MudTd DataLabel="Stock Balance">@context.QuantityOnHand</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+    <MudTabPanel Text="Serial Numbers">
+        <MudSelect T="long" Label="Select Product" @bind-Value="selectedProductForSerials">
+            @foreach (var p in products)
+            {
+                <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Info" OnClick="LoadSerials" Class="mt-4">Load Serials</MudButton>
+        <MudTable Items="@serialNumbers" Hover="true" Breakpoint="Breakpoint.Sm" RowClassFunc="@((item, idx) => item.Status == "Sold" ? "text-danger" : "")" Class="mt-4">
+            <HeaderContent>
+                <MudTh>Serial Number</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Agreement No</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Serial Number">@context.SerialNo</MudTd>
+                <MudTd DataLabel="Status">@context.Status</MudTd>
+                <MudTd DataLabel="Agreement No">@context.AgreementNo</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+    <MudTabPanel Text="Stock Transfer">
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="long" Label="From Branch" @bind-Value="transferRequest.FromBranchId">
+                    @foreach (var b in branches)
+                    {
+                        <MudSelectItem Value="@b.Id">@b.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="long" Label="To Branch" @bind-Value="transferRequest.ToBranchId">
+                    @foreach (var b in branches)
+                    {
+                        <MudSelectItem Value="@b.Id">@b.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="long" Label="Select Product" @bind-Value="selectedProductForTransfer" SelectedValuesChanged="LoadSerialsForTransfer">
+                    @foreach (var p in products)
+                    {
+                        <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle1">Select Serial Numbers to Transfer</MudText>
+                @foreach (var s in availableSerials)
+                {
+                    <MudCheckBox T="bool" Label="@s.SerialNo" @bind-Value="s.IsSelected" />
+                }
+            </MudItem>
+            <MudItem xs="12">
+                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="PerformTransfer">Submit Transfer</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    bool loading = true;
+    List<ProductDto> products = new();
+    List<SerialNumberDto> serialNumbers = new();
+    List<BranchDto> branches = new();
+    long selectedProductForSerials;
+    long selectedProductForTransfer;
+    List<SelectableSerialDto> availableSerials = new();
+    TransferRequestDto transferRequest = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+        branches = await ApiClient.GetAsync<List<BranchDto>>("branches") ?? new();
+        loading = false;
+    }
+
+    async Task LoadProducts()
+    {
+        products = await ApiClient.GetAsync<List<ProductDto>>("products") ?? new();
+    }
+
+    async Task LoadSerials()
+    {
+        if (selectedProductForSerials == 0) return;
+        serialNumbers = await ApiClient.GetAsync<List<SerialNumberDto>>($"products/{selectedProductForSerials}/serials") ?? new();
+    }
+
+    async Task LoadSerialsForTransfer()
+    {
+        if (selectedProductForTransfer == 0 || transferRequest.FromBranchId == 0) return;
+        var serials = await ApiClient.GetAsync<List<SerialNumberDto>>($"branches/{transferRequest.FromBranchId}/products/{selectedProductForTransfer}/serials") ?? new();
+        availableSerials = serials.Select(s => new SelectableSerialDto { Id = s.Id, SerialNo = s.SerialNo }).ToList();
+    }
+
+    async Task PerformTransfer()
+    {
+        transferRequest.SerialIds = availableSerials.Where(s => s.IsSelected).Select(s => s.Id).ToList();
+        if (transferRequest.SerialIds.Count == 0) return;
+
+        var response = await ApiClient.PostAsync("inventory/transfers", transferRequest);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Transfer completed successfully", Severity.Success);
+            await LoadProducts();
+            availableSerials.Clear();
+        }
+        else
+        {
+            Snackbar.Add("Failed to complete transfer", Severity.Error);
+        }
+    }
+
+    public class ProductDto { public long Id { get; set; } public string Code { get; set; } = ""; public string Name { get; set; } = ""; public decimal Price { get; set; } public int QuantityOnHand { get; set; } }
+    public class SerialNumberDto { public long Id { get; set; } public string SerialNo { get; set; } = ""; public string Status { get; set; } = ""; public string? AgreementNo { get; set; } }
+    public class BranchDto { public long Id { get; set; } public string Name { get; set; } = ""; }
+    public class SelectableSerialDto { public long Id { get; set; } public string SerialNo { get; set; } = ""; public bool IsSelected { get; set; } }
+    public class TransferRequestDto { public long FromBranchId { get; set; } public long ToBranchId { get; set; } public List<long> SerialIds { get; set; } = new(); }
+}

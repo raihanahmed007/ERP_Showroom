@@ -1,0 +1,40 @@
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@using ErpShowroom.Application.sys.DTOs
+@page "/login"
+@layout EmptyLayout
+@inject IApiClient ApiClient
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="4" Class="pa-8">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">ERP Login</MudText>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudTextField T="string" Label="Username/Phone/Email" @bind-Value="loginRequest.UsernamePhoneOrEmail" Required="true" />
+            <MudTextField T="string" Label="Password" @bind-Value="loginRequest.Password" InputType="InputType.Password" Required="true" />
+            <div class="d-flex align-center justify-space-between mt-6">
+                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" Disabled="@(!success)" OnClick="HandleLogin">Login</MudButton>
+            </div>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    MudForm form = default!;
+    bool success;
+    LoginRequestDto loginRequest = new();
+
+    async Task HandleLogin()
+    {
+        var result = await ApiClient.LoginAsync(loginRequest);
+        if (result != null)
+        {
+            NavigationManager.NavigateTo("/");
+        }
+        else
+        {
+            Snackbar.Add("Invalid credentials", Severity.Error);
+        }
+    }
+}

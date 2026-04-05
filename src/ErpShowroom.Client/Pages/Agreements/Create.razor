@@ -1,0 +1,80 @@
+@page "/agreements/create"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">New HP Agreement</MudText>
+
+<MudPaper Class="pa-8">
+    <MudForm @ref="form" Valid="@isValid" @bind-IsValid="@isValid">
+        <MudAutocomplete T="CustomerDto" Label="Customer" @bind-Value="selectedCustomer" SearchFunc="@SearchCustomers"
+                         ToStringFunc="@(c => c==null ? null : $"{c.Name} ({c.Phone})")" Required="true" RequiredError="Customer is required" />
+
+        <MudSelect T="int" Label="Product" @bind-Value="agreement.ProductId" Required="true" RequiredError="Product is required" Class="mt-4">
+            @foreach (var p in products)
+            {
+                <MudSelectItem Value="@p.Id">@p.Name - @p.Price.ToString("C")</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudNumericField T="decimal" Label="Down Payment" @bind-Value="agreement.DownPayment" Required="true" Min="0" Class="mt-4" />
+        <MudNumericField T="int" Label="Installment Count" @bind-Value="agreement.InstallmentCount" Required="true" Min="1" Class="mt-4" />
+        <MudNumericField T="decimal" Label="Interest Rate (%)" @bind-Value="agreement.InterestRate" Required="true" Min="0" Class="mt-4" />
+
+        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="SubmitAgreement" Disabled="@(!isValid)" Class="mt-6">Create Agreement</MudButton>
+    </MudForm>
+</MudPaper>
+
+@code {
+    MudForm? form;
+    bool isValid;
+    CreateAgreementCommand agreement = new();
+    CustomerDto? selectedCustomer;
+    List<ProductDto> products = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        products = await ApiClient.GetAsync<List<ProductDto>>("products") ?? new();
+    }
+
+    private async Task<IEnumerable<CustomerDto>> SearchCustomers(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value)) return new List<CustomerDto>();
+        return await ApiClient.GetAsync<List<CustomerDto>>($"customers/search?term={value}") ?? new List<CustomerDto>();
+    }
+
+    private async Task SubmitAgreement()
+    {
+        await form!.Validate();
+        if (form.IsValid && selectedCustomer != null)
+        {
+            agreement.CustomerId = selectedCustomer.Id;
+            var response = await ApiClient.PostAsync("agreements", agreement);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Agreement created successfully", Severity.Success);
+                NavigationManager.NavigateTo("/agreements");
+            }
+            else
+            {
+                Snackbar.Add("Failed to create agreement", Severity.Error);
+            }
+        }
+    }
+
+    public class CreateAgreementCommand
+    {
+        public int CustomerId { get; set; }
+        public int ProductId { get; set; }
+        public decimal DownPayment { get; set; }
+        public int InstallmentCount { get; set; }
+        public decimal InterestRate { get; set; }
+    }
+
+    public class CustomerDto { public int Id { get; set; } public string Name { get; set; } = ""; public string Phone { get; set; } = ""; }
+    public class ProductDto { public int Id { get; set; } public string Name { get; set; } = ""; public decimal Price { get; set; } }
+}

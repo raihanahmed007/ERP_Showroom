@@ -1,0 +1,33 @@
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+    
+    <MudNavGroup Title="HP Agreements" Icon="@Icons.Material.Filled.Assignment" Expanded="true">
+        <MudNavLink Href="/agreements" Icon="@Icons.Material.Filled.List">Agreement List</MudNavLink>
+        <MudNavLink Href="/agreements/create" Icon="@Icons.Material.Filled.Add">New Agreement</MudNavLink>
+        <AuthorizeView Roles="Collector">
+            <MudNavLink Href="/emi/payments" Icon="@Icons.Material.Filled.Payment">EMI Collections</MudNavLink>
+        </AuthorizeView>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Inventory" Icon="@Icons.Material.Filled.Inventory" Expanded="true">
+        <MudNavLink Href="/inventory" Icon="@Icons.Material.Filled.Store">Manage Inventory</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Accounting" Icon="@Icons.Material.Filled.AccountBalance" Expanded="true">
+        <MudNavLink Href="/accounting/journal-entry" Icon="@Icons.Material.Filled.StickyNote2">Journal Entry</MudNavLink>
+        <MudNavLink Href="/accounting/trial-balance" Icon="@Icons.Material.Filled.Balance">Trial Balance</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="HR" Icon="@Icons.Material.Filled.People" Expanded="true">
+        <MudNavLink Href="/hr/attendance" Icon="@Icons.Material.Filled.PunchClock">Attendance</MudNavLink>
+        <MudNavLink Href="/hr/leave-request" Icon="@Icons.Material.Filled.CalendarMonth">Leave Request</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Workshop" Icon="@Icons.Material.Filled.Build" Expanded="true">
+        <MudNavLink Href="/workshop/job-cards/create" Icon="@Icons.Material.Filled.TimeToLeave">New Job Card</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Documents" Icon="@Icons.Material.Filled.FilePresent" Expanded="true">
+        <MudNavLink Href="/documents/upload" Icon="@Icons.Material.Filled.UploadFile">Upload & OCR</MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>

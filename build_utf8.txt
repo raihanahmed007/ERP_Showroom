@@ -1,0 +1,27 @@
+﻿  Determining projects to restore...
+D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj : warning NU1510: PackageReference System.Net.Http.Json will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary. [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : error NU1103: Unable to find a stable package UglyToad.PdfPig with version (>= 0.1.9) [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : error NU1103:   - Found 2 version(s) in nuget.org [ Nearest version: 1.7.0-custom-5 ] [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : error NU1103:   - Found 0 version(s) in Microsoft Visual Studio Offline Packages [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj : error NU1103: Unable to find a stable package UglyToad.PdfPig with version (>= 0.1.9) [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj : error NU1103:   - Found 2 version(s) in nuget.org [ Nearest version: 1.7.0-custom-5 ] [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj : error NU1103:   - Found 0 version(s) in Microsoft Visual Studio Offline Packages [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.11.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-8785-wc3w-h8q6 [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+  Failed to restore D:\ERP_SHOWROOM\src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj (in 401 ms).
+  Failed to restore D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj (in 402 ms).
+  3 of 5 projects are up-to-date for restore.
+
+Build FAILED.
+
+D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj : warning NU1510: PackageReference System.Net.Http.Json will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary. [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.11.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-8785-wc3w-h8q6 [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : error NU1103: Unable to find a stable package UglyToad.PdfPig with version (>= 0.1.9) [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : error NU1103:   - Found 2 version(s) in nuget.org [ Nearest version: 1.7.0-custom-5 ] [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.API\ErpShowroom.API.csproj : error NU1103:   - Found 0 version(s) in Microsoft Visual Studio Offline Packages [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj : error NU1103: Unable to find a stable package UglyToad.PdfPig with version (>= 0.1.9) [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj : error NU1103:   - Found 2 version(s) in nuget.org [ Nearest version: 1.7.0-custom-5 ] [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+D:\ERP_SHOWROOM\src\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj : error NU1103:   - Found 0 version(s) in Microsoft Visual Studio Offline Packages [D:\ERP_SHOWROOM\ErpShowroom.slnx]
+    2 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:01.19

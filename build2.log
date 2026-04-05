@@ -1,0 +1,21 @@
+Build started 4/5/2026 4:01:39 PM.
+Logging verbosity is set to: Normal.     1>Project "D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj" on node 1 (Restore target(s)).
+     1>MSBUILD : warning MSB4010: The "*.tasks" files could not be successfully loaded from their expected location "C:\Program Files\dotnet\sdk\10.0.102". Default tasks will not be available.  [D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj]
+     1>C:\Program Files\dotnet\sdk\10.0.102\NuGet.targets(510,5): error MSB4036: The "RemoveDuplicates" task was not found. Check the following: 1.) The name of the task in the project file is the same as the name of the task class. 2.) The task class is "public" and implements the Microsoft.Build.Framework.ITask interface. 3.) The task is correctly declared with <UsingTask> in the project file, or in the *.tasks files located in the "C:\Program Files\dotnet\sdk\10.0.102" directory. [D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj]
+     1>Done Building Project "D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj" (Restore target(s)) -- FAILED.
+
+Build FAILED.
+
+       "D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj" (Restore target) (1) ->
+       (_FilterRestoreGraphProjectInputItems target) -> 
+         MSBUILD : warning MSB4010: The "*.tasks" files could not be successfully loaded from their expected location "C:\Program Files\dotnet\sdk\10.0.102". Default tasks will not be available.  [D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj]
+
+
+       "D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj" (Restore target) (1) ->
+       (_FilterRestoreGraphProjectInputItems target) -> 
+         C:\Program Files\dotnet\sdk\10.0.102\NuGet.targets(510,5): error MSB4036: The "RemoveDuplicates" task was not found. Check the following: 1.) The name of the task in the project file is the same as the name of the task class. 2.) The task class is "public" and implements the Microsoft.Build.Framework.ITask interface. 3.) The task is correctly declared with <UsingTask> in the project file, or in the *.tasks files located in the "C:\Program Files\dotnet\sdk\10.0.102" directory. [D:\ERP_SHOWROOM\src\ErpShowroom.Client\ErpShowroom.Client.csproj]
+
+    1 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.42

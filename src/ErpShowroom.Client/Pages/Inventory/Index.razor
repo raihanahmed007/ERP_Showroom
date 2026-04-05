@@ -1,0 +1,116 @@
+@page "/inventory"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">Inventory Management</MudText>
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+    <MudTabPanel Text="Products">
+        <MudTable Items="@products" Hover="true" OnRowClick="RowClicked" SelectedItemChanged="OnProductSelected" T="ProductDto">
+            <HeaderContent>
+                <MudTh>Code</MudTh>
+                <MudTh>Name</MudTh>
+                <MudTh>Price</MudTh>
+                <MudTh>Stock Balance</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Code</MudTd>
+                <MudTd>@context.Name</MudTd>
+                <MudTd>@context.Price.ToString("C")</MudTd>
+                <MudTd>@context.StockBalance</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Serial Numbers" Disabled="@(selectedProduct == null)">
+        @if (selectedProduct != null)
+        {
+            <MudText Typo="Typo.h6" Class="mb-4">Serials for @selectedProduct.Name</MudText>
+            <MudTable Items="@serials" Hover="true">
+                <HeaderContent>
+                    <MudTh>Serial Number</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Current Agreement</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.SerialNumber</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                    <MudTd>@context.AgreementNo</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Stock Transfer">
+        <MudForm @ref="transferForm" Valid="@isTransferValid" @bind-IsValid="@isTransferValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="From Branch" @bind-Value="transfer.FromBranch" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="To Branch" @bind-Value="transfer.ToBranch" Required="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="string" Label="Select Serials" MultiSelection="true" @bind-SelectedValues="selectedSerialValues" Clearable="true">
+                        @foreach (var s in availableSerials)
+                        {
+                            <MudSelectItem Value="@s.SerialNumber">@s.SerialNumber</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton OnClick="SubmitTransfer" Disabled="@(!isTransferValid || !selectedSerialValues.Any())" Variant="Variant.Filled" Color="MudBlazor.Color.Primary">Transfer Stock</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    List<ProductDto> products = new();
+    ProductDto? selectedProduct;
+    List<SerialDto> serials = new();
+    List<SerialDto> availableSerials = new();
+    
+    MudForm transferForm = default!;
+    bool isTransferValid;
+    TransferDto transfer = new();
+    IEnumerable<string> selectedSerialValues = new HashSet<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        products = await ApiClient.GetAsync<List<ProductDto>>("inventory/products") ?? new();
+        availableSerials = await ApiClient.GetAsync<List<SerialDto>>("inventory/serials?status=Available") ?? new();
+    }
+
+    void RowClicked(TableRowClickEventArgs<ProductDto> args) { }
+
+    async Task OnProductSelected(ProductDto product)
+    {
+        selectedProduct = product;
+        serials = await ApiClient.GetAsync<List<SerialDto>>($"inventory/products/{product.Id}/serials") ?? new();
+    }
+
+    async Task SubmitTransfer()
+    {
+        transfer.SerialNumbers = selectedSerialValues.ToList();
+        var response = await ApiClient.PostAsync("inventory/transfers", transfer);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Stock transferred successfully", Severity.Success);
+            transfer = new();
+            selectedSerialValues = new HashSet<string>();
+        }
+        else
+        {
+            Snackbar.Add("Transfer failed", Severity.Error);
+        }
+    }
+
+    public class ProductDto { public int Id { get; set; } public string Code { get; set; } = ""; public string Name { get; set; } = ""; public decimal Price { get; set; } public int StockBalance { get; set; } }
+    public class SerialDto { public string SerialNumber { get; set; } = ""; public string Status { get; set; } = ""; public string? AgreementNo { get; set; } }
+    public class TransferDto { public string FromBranch { get; set; } = ""; public string ToBranch { get; set; } = ""; public List<string> SerialNumbers { get; set; } = new(); }
+}

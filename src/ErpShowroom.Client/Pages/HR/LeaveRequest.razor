@@ -1,0 +1,100 @@
+@page "/hr/leave-request"
+@attribute [Authorize]
+@using Microsoft.JSInterop
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">Leave Request</MudText>
+
+<MudPaper Class="pa-8">
+    <MudForm @ref="form" Valid="@isValid" @bind-IsValid="@isValid">
+        <MudSelect T="string" Label="Leave Type" @bind-Value="leaveRequest.LeaveType" Required="true" RequiredError="Leave Type is required">
+            <MudSelectItem Value="@("Sick")">Sick</MudSelectItem>
+            <MudSelectItem Value="@("Casual")">Casual</MudSelectItem>
+            <MudSelectItem Value="@("Annual")">Annual</MudSelectItem>
+        </MudSelect>
+
+        <MudDatePicker Label="From Date" @bind-Date="leaveRequest.FromDate" Required="true" Class="mt-4" />
+        <MudDatePicker Label="To Date" @bind-Date="leaveRequest.ToDate" Required="true" Class="mt-4" />
+
+        <MudTextField T="string" Label="Reason" @bind-Value="leaveRequest.Reason" Required="true" RequiredError="Reason is required" Lines="3" Class="mt-4" />
+
+        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="SubmitRequest" Disabled="@(!isValid)" Class="mt-6">Submit Request</MudButton>
+    </MudForm>
+</MudPaper>
+
+<MudText Typo="Typo.h5" Class="mt-8 mb-4">My Leave Requests</MudText>
+
+<MudTable Items="@requests" Hover="true">
+    <HeaderContent>
+        <MudTh>Leave Type</MudTh>
+        <MudTh>From Date</MudTh>
+        <MudTh>To Date</MudTh>
+        <MudTh>Reason</MudTh>
+        <MudTh>Status</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.LeaveType</MudTd>
+        <MudTd>@context.FromDate?.ToShortDateString()</MudTd>
+        <MudTd>@context.ToDate?.ToShortDateString()</MudTd>
+        <MudTd>@context.Reason</MudTd>
+        <MudTd>
+            <MudChip T="string" Color="@GetStatusColor(context.Status)">@context.Status</MudChip>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    MudForm? form;
+    bool isValid;
+    LeaveRequestDto leaveRequest = new LeaveRequestDto { FromDate = DateTime.Today, ToDate = DateTime.Today };
+    List<LeaveRequestDto> requests = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+    }
+
+    async Task LoadRequests()
+    {
+        requests = await ApiClient.GetAsync<List<LeaveRequestDto>>("hr/leaves") ?? new();
+    }
+
+    async Task SubmitRequest()
+    {
+        await form!.Validate();
+        if (form.IsValid)
+        {
+            var response = await ApiClient.PostAsync("hr/leaves", leaveRequest);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Leave request submitted successfully", Severity.Success);
+                leaveRequest = new LeaveRequestDto { FromDate = DateTime.Today, ToDate = DateTime.Today };
+                await LoadRequests();
+            }
+            else
+            {
+                Snackbar.Add("Failed to submit leave request", Severity.Error);
+            }
+        }
+    }
+
+    MudBlazor.Color GetStatusColor(string status) => status switch
+    {
+        "Approved" => MudBlazor.Color.Success,
+        "Rejected" => MudBlazor.Color.Error,
+        "Pending" => MudBlazor.Color.Warning,
+        _ => MudBlazor.Color.Default
+    };
+
+    public class LeaveRequestDto
+    {
+        public string LeaveType { get; set; } = "";
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public string Reason { get; set; } = "";
+        public string Status { get; set; } = "Pending";
+    }
+}

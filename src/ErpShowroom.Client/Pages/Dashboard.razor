@@ -1,0 +1,134 @@
+@page "/"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@implements IDisposable
+
+<MudText Typo="Typo.h3" GutterBottom="true" Class="mb-6">Dashboard</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="3" Class="rounded-lg h-100">
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle2" Color="MudBlazor.Color.Secondary">Collection Efficiency</MudText>
+                <MudText Typo="Typo.h4" Color="MudBlazor.Color.Success" Class="mt-2">
+                    @(kpis?.CollectionEfficiency.ToString("P1") ?? "—")
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="3" Class="rounded-lg h-100">
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle2" Color="MudBlazor.Color.Secondary">PAR (%)</MudText>
+                <MudText Typo="Typo.h4" Color="@(kpis?.PAR > 0.05m ? MudBlazor.Color.Error : MudBlazor.Color.Warning)" Class="mt-2">
+                    @(kpis?.PAR.ToString("P1") ?? "—")
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="3" Class="rounded-lg h-100">
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle2" Color="MudBlazor.Color.Secondary">Recovery Rate</MudText>
+                <MudText Typo="Typo.h4" Color="MudBlazor.Color.Info" Class="mt-2">
+                    @(kpis?.RecoveryRate.ToString("P1") ?? "—")
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="3" Class="rounded-lg h-100">
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle2" Color="MudBlazor.Color.Secondary">Inventory Turnover</MudText>
+                <MudText Typo="Typo.h4" Color="MudBlazor.Color.Primary" Class="mt-2">
+                    @(kpis?.InventoryTurnover.ToString("N2") ?? "—")
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <MudItem xs="12" md="6" Class="mt-6">
+        <MudCard Elevation="3" Class="rounded-lg">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">KPI Overview</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudChart ChartType="ChartType.Bar" ChartSeries="@series" XAxisLabels="@xAxisLabels" Width="100%" Height="300px"></MudChart>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    
+    <MudItem xs="12" md="6" Class="mt-6">
+        <MudCard Elevation="3" Class="rounded-lg">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Rates Comparison</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudChart ChartType="ChartType.Pie" InputData="@pieData" InputLabels="@pieLabels" Width="100%" Height="300px" />
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private KpiDto? kpis;
+    private PeriodicTimer? timer;
+    
+    public List<ChartSeries> series = new();
+    public string[] xAxisLabels = { "Efficiency", "PAR", "Recovery", "Turnover" };
+    public double[] pieData = new double[0];
+    public string[] pieLabels = { "Collection", "Recovery" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadKpis();
+        timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        _ = RefreshKpisLoop();
+    }
+
+    private async Task LoadKpis()
+    {
+        kpis = await ApiClient.GetAsync<KpiDto>("dashboard/kpis");
+        
+        if (kpis != null)
+        {
+            series = new List<ChartSeries>()
+            {
+                new ChartSeries() { Name = "Performance Metrics", Data = new double[] { (double)kpis.CollectionEfficiency * 100, (double)kpis.PAR * 100, (double)kpis.RecoveryRate * 100, (double)kpis.InventoryTurnover } }
+            };
+            
+            pieData = new double[] { (double)kpis.CollectionEfficiency, (double)kpis.RecoveryRate };
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task RefreshKpisLoop()
+    {
+        if (timer == null) return;
+        try
+        {
+            while (await timer.WaitForNextTickAsync())
+            {
+                await LoadKpis();
+            }
+        }
+        catch { }
+    }
+
+    public void Dispose() => timer?.Dispose();
+
+    public class KpiDto
+    {
+        public decimal CollectionEfficiency { get; set; }
+        public decimal PAR { get; set; }
+        public decimal RecoveryRate { get; set; }
+        public decimal InventoryTurnover { get; set; }
+    }
+}
