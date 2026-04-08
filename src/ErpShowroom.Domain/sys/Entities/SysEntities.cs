@@ -6,6 +6,77 @@ using ErpShowroom.Domain.Common;
 
 namespace ErpShowroom.Domain.sys.Entities;
 
+public enum CompanyType { Main, Sub }
+public enum FeatureType { Page, API, Report, Button }
+public enum PageType { List, Form, Report, Dashboard }
+public enum RoleType { SystemAdmin, CompanyAdmin, User, ReadOnly }
+public enum OutputFormat { Grid, PDF, Excel, Chart }
+public enum ConfigDataType { String, Int, Bool, Json, DateTime }
+public enum BackupType { Full, Differential, Log }
+public enum BackupStatus { Running, Success, Failed }
+public enum AuditAction { Insert, Update, Delete, Login, Logout, Export, Permission }
+
+[Table("Companies", Schema = "sys")]
+public class Company : BaseEntity
+{
+    [Required] public string CompanyName { get; set; } = string.Empty;
+    [Required] public string CompanyCode { get; set; } = string.Empty;
+    public CompanyType CompanyType { get; set; }
+    public int? ParentCompanyId { get; set; }
+    [ForeignKey("ParentCompanyId")] public Company? ParentCompany { get; set; }
+    public string? Address { get; set; }
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+    public string? LogoUrl { get; set; }
+    public string? LicenseNo { get; set; }
+    public string? TaxId { get; set; }
+    public string? ContactPerson { get; set; }
+    public bool IsHeadOffice { get; set; }
+    public DateTime? ActivationDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public int MaxUsers { get; set; } = 50;
+    public string? DatabaseName { get; set; }
+}
+[Table("Modules", Schema = "sys")]
+public class AppModule : BaseEntity
+{
+    [Required] public string ModuleName { get; set; } = string.Empty;
+    [Required] public string ModuleCode { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? IconName { get; set; }
+    public int SortOrder { get; set; }
+    public int? ParentModuleId { get; set; }
+    [ForeignKey("ParentModuleId")] public AppModule? ParentModule { get; set; }
+    public string? RoutePrefix { get; set; }
+}
+[Table("Features", Schema = "sys")]
+public class Feature : BaseEntity
+{
+    [Required] public string FeatureName { get; set; } = string.Empty;
+    [Required] public string FeatureCode { get; set; } = string.Empty;
+    public int ModuleId { get; set; }
+    [ForeignKey("ModuleId")] public AppModule Module { get; set; } = null!;
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
+    public FeatureType FeatureType { get; set; }
+}
+
+[Table("Pages", Schema = "sys")]
+public class AppPage : BaseEntity
+{
+    [Required] public string PageName { get; set; } = string.Empty;
+    [Required] public string PageCode { get; set; } = string.Empty;
+    public int FeatureId { get; set; }
+    [ForeignKey("FeatureId")] public Feature Feature { get; set; } = null!;
+    [Required] public string RouteUrl { get; set; } = string.Empty;
+    public string? ComponentName { get; set; }
+    public string? IconName { get; set; }
+    public int SortOrder { get; set; }
+    public bool RequiresApproval { get; set; }
+    public PageType PageType { get; set; }
+}
+
+[Table("Users", Schema = "sys")]
 public class User : BaseEntity
 {
     [Required, MaxLength(100)] public string? UserName { get; set; }
@@ -26,20 +97,85 @@ public class User : BaseEntity
     public virtual ICollection<UserRole>? Roles { get; set; }
 }
 
+[Table("Roles", Schema = "sys")]
 public class Role : BaseEntity
 {
-    [Required, MaxLength(50)] public string? Name { get; set; }
-    [MaxLength(50)] public string? NormalizedName { get; set; }
-    [MaxLength(200)] public string? Description { get; set; }
+    [Required] public string RoleName { get; set; } = string.Empty;
+    [Required] public string RoleCode { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public RoleType RoleType { get; set; }
+    public int? CompanyId { get; set; }
+    [ForeignKey("CompanyId")] public Company? Company { get; set; }
 }
 
+[Table("Permissions", Schema = "sys")]
 public class Permission : BaseEntity
 {
     [Required, MaxLength(50)] public string? ModuleName { get; set; }
     [Required, MaxLength(50)] public string? ActionName { get; set; }
     [Required, MaxLength(100)] public string? PermissionKey { get; set; }
 }
+[Table("CompanyModuleAccess", Schema = "sys")]
+public class CompanyModuleAccess : BaseEntity
+{
+    public int CompanyId { get; set; }
+    [ForeignKey("CompanyId")] public Company Company { get; set; } = null!;
+    public int ModuleId { get; set; }
+    [ForeignKey("ModuleId")] public AppModule Module { get; set; } = null!;
+    public bool IsEnabled { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public int GrantedBy { get; set; }
+    public DateTime GrantedAt { get; set; } = DateTime.UtcNow;
+}
 
+[Table("PagePermissions", Schema = "sys")]
+public class PagePermission : BaseEntity
+{
+    public int RoleId { get; set; }
+    [ForeignKey("RoleId")] public Role Role { get; set; } = null!;
+    public int PageId { get; set; }
+    [ForeignKey("PageId")] public AppPage Page { get; set; } = null!;
+    public int CompanyId { get; set; }
+    public bool CanView { get; set; }
+    public bool CanCreate { get; set; }
+    public bool CanEdit { get; set; }
+    public bool CanDelete { get; set; }
+    public bool CanApprove { get; set; }
+    public bool CanExport { get; set; }
+}
+
+[Table("ApprovalSetups", Schema = "sys")]
+public class ApprovalSetup : BaseEntity
+{
+    public int CompanyId { get; set; }
+    public int PageId { get; set; }
+    [ForeignKey("PageId")] public AppPage Page { get; set; } = null!;
+    public int StepOrder { get; set; }
+    public int? ApproverRoleId { get; set; }
+    public int? ApproverUserId { get; set; }
+    public bool IsParallel { get; set; }
+    public int TimeoutHours { get; set; }
+    public int? EscalationRoleId { get; set; }
+}
+
+
+[Table("UserPageAccess", Schema = "sys")]
+public class UserPageAccess : BaseEntity
+{
+    public int UserId { get; set; }
+    [ForeignKey("UserId")] public AppUser User { get; set; } = null!;
+    public int PageId { get; set; }
+    [ForeignKey("PageId")] public AppPage Page { get; set; } = null!;
+    public int CompanyId { get; set; }
+    public bool CanView { get; set; }
+    public bool CanCreate { get; set; }
+    public bool CanEdit { get; set; }
+    public bool CanDelete { get; set; }
+    public bool CanApprove { get; set; }
+    public bool CanExport { get; set; }
+    public bool OverridesRole { get; set; }
+}
+[Table("UserRoles", Schema = "sys")]
 public class UserRole : BaseEntity
 {
     public long? UserId { get; set; }
@@ -52,6 +188,7 @@ public class UserRole : BaseEntity
     public virtual Role? Role { get; set; }
 }
 
+[Table("RolePermissions", Schema = "sys")]
 public class RolePermission : BaseEntity
 {
     public long? RoleId { get; set; }
@@ -64,6 +201,43 @@ public class RolePermission : BaseEntity
     public virtual Permission? Permission { get; set; }
 }
 
+[Table("ReportTypes", Schema = "sys")]
+public class ReportType : BaseEntity
+{
+    [Required] public string ReportTypeName { get; set; } = string.Empty;
+    [Required] public string ReportTypeCode { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int ModuleId { get; set; }
+    [ForeignKey("ModuleId")] public AppModule Module { get; set; } = null!;
+    public int SortOrder { get; set; }
+}
+
+[Table("ReportNames", Schema = "sys")]
+public class ReportName : BaseEntity
+{
+    [Required] public string Name { get; set; } = string.Empty;
+    [Required] public string ReportCode { get; set; } = string.Empty;
+    public int ReportTypeId { get; set; }
+    [ForeignKey("ReportTypeId")] public ReportType ReportType { get; set; } = null!;
+    public string? Description { get; set; }
+    public string? ReportQuery { get; set; }
+    public int SortOrder { get; set; }
+    public OutputFormat OutputFormat { get; set; }
+    public string? Parameters { get; set; }
+}
+
+[Table("UserDashboardAccess", Schema = "sys")]
+public class UserDashboardAccess : BaseEntity
+{
+    public int UserId { get; set; }
+    public int CompanyId { get; set; }
+    public string? DashboardWidgets { get; set; }
+    public string? LayoutConfig { get; set; }
+    public bool IsCustomized { get; set; }
+    public DateTime LastModified { get; set; } = DateTime.UtcNow;
+}
+
+[Table("AuditLogs", Schema = "sys")]
 public class AuditLog : BaseEntity
 {
     [Required, MaxLength(100)] public string? TableName { get; set; }
@@ -190,4 +364,38 @@ public class PromptTemplate : BaseEntity
     public string? Version { get; set; }
     public bool? IsActive { get; set; } = true;
     public string? Description { get; set; }
+}
+
+[Table("DatabaseBackupLogs", Schema = "sys")]
+public class DatabaseBackupLog : BaseEntity
+{
+    public string? BackupFileName { get; set; }
+    public string? BackupPath { get; set; }
+    public long BackupSizeKB { get; set; }
+    public BackupType BackupType { get; set; }
+    public DateTime StartedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public BackupStatus Status { get; set; }
+    public string? ErrorMessage { get; set; }
+    public int TriggeredBy { get; set; }
+    public bool IsAutomatic { get; set; }
+    public int DownloadCount { get; set; }
+}
+
+[Table("UserLoginLogs", Schema = "sys")]
+public class UserLoginLog : BaseEntity
+{
+    public int UserId { get; set; }
+    public string? Username { get; set; }
+    public DateTime LoginAt { get; set; }
+    public DateTime? LogoutAt { get; set; }
+    public string? IpAddress { get; set; }
+    public string? UserAgent { get; set; }
+    public string? Browser { get; set; }
+    public string? OS { get; set; }
+    public string? DeviceType { get; set; }
+    public bool IsSuccess { get; set; }
+    public string? FailureReason { get; set; }
+    public int? SessionDuration { get; set; }
+    public int? CompanyId { get; set; }
 }
