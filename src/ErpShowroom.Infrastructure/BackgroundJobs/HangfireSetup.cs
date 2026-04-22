@@ -30,8 +30,8 @@ public class HangfireJobLoggerFilter : JobFilterAttribute, IServerFilter
         }
         else
         {
-            Log.Information("Hangfire Job Completed: {JobId} for {JobName}. Duration: {Duration}ms", 
-                context.BackgroundJob.Id, context.BackgroundJob.Job.Method.Name, context.Duration);
+            Log.Information("Hangfire Job Completed: {JobId} for {JobName}.", 
+                context.BackgroundJob.Id, context.BackgroundJob.Job.Method.Name);
         }
     }
 }

@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <StaticWebAssetsFingerprintContent>false</StaticWebAssetsFingerprintContent>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
   </PropertyGroup>
 
@@ -14,11 +14,14 @@
     <PackageReference Include="MudBlazor" Version="8.2.0" />
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.2" />
-    <PackageReference Include="System.Net.Http.Json" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ErpShowroom.Application\ErpShowroom.Application.csproj" />
   </ItemGroup>
 
 </Project>

@@ -19,11 +19,11 @@ public class AuthService(AppDbContext db, IConfiguration configuration) : IAuthS
     public async Task<AuthResult?> LoginAsync(LoginRequest request)
     {
         var user = await db.Users
-            .Include(u => u.UserRoles!)
+            .Include(u => u.Roles!)
                 .ThenInclude(ur => ur.Role!)
                     .ThenInclude(r => r.RolePermissions!)
                         .ThenInclude(rp => rp.Permission)
-            .FirstOrDefaultAsync(u => u.Username == request.Username || u.Email == request.Username || u.Phone == request.Username);
+            .FirstOrDefaultAsync(u => u.UserName == request.Username || u.Email == request.Username || u.Phone == request.Username);
             
         if (user == null || user.IsActive == false) return null;
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash)) return null;
@@ -38,8 +38,8 @@ public class AuthService(AppDbContext db, IConfiguration configuration) : IAuthS
 
         var username = principal.Identity?.Name;
         var user = await db.Users
-            .Include(u => u.UserRoles!).ThenInclude(ur => ur.Role!).ThenInclude(r => r.RolePermissions!).ThenInclude(rp => rp.Permission)
-            .FirstOrDefaultAsync(u => u.Username == username);
+            .Include(u => u.Roles!).ThenInclude(ur => ur.Role!).ThenInclude(r => r.RolePermissions!).ThenInclude(rp => rp.Permission)
+            .FirstOrDefaultAsync(u => u.UserName == username);
 
         if (user == null || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow) return null;
 
@@ -48,7 +48,7 @@ public class AuthService(AppDbContext db, IConfiguration configuration) : IAuthS
 
     public async Task<bool> LogoutAsync(string username)
     {
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Username == username);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.UserName == username);
         if (user == null) return false;
 
         user.RefreshToken = null;
@@ -62,13 +62,13 @@ public class AuthService(AppDbContext db, IConfiguration configuration) : IAuthS
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.Username!),
+            new Claim(ClaimTypes.Name, user.UserName!),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        if (user.UserRoles != null)
+        if (user.Roles != null)
         {
-            foreach (var ur in user.UserRoles)
+            foreach (var ur in user.Roles)
             {
                 if (ur.Role != null)
                 {

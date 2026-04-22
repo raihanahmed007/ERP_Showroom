@@ -1,5 +1,6 @@
 using System;
 using MediatR;
+using ErpShowroom.Domain.Common;
 using ErpShowroom.Domain.fin.Entities;
 
 namespace ErpShowroom.Application.fin.WorkflowCommands;

@@ -97,8 +97,8 @@
     async Task SubmitTransfer()
     {
         transfer.SerialNumbers = selectedSerialValues.ToList();
-        var response = await ApiClient.PostAsync("inventory/transfers", transfer);
-        if (response.IsSuccessStatusCode)
+        var success = await ApiClient.PostAsyncBool("inventory/transfers", transfer);
+        if (success)
         {
             Snackbar.Add("Stock transferred successfully", Severity.Success);
             transfer = new();

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ErpShowroom.Domain.sys.Entities;
@@ -9,12 +10,18 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(AppDbContext context)
     {
+        await SeedCoreAsync(context);
+        await SeedTestDataFromScriptAsync(context);
+    }
+
+    private static async Task SeedCoreAsync(AppDbContext context)
+    {
         // 1. Core Roles
         var roles = new[] { "SuperAdmin", "FinanceManager", "Collector", "WorkshopTech", "HRManager" };
         foreach (var r in roles)
         {
-            if (!await context.Roles.AnyAsync(x => x.Name == r))
-                context.Roles.Add(new Role { Name = r, NormalizedName = r.ToUpper(), IsActive = true });
+            if (!await context.Roles.AnyAsync(x => x.RoleName == r))
+                context.Roles.Add(new Role { RoleName = r, RoleCode = r.ToUpper(), IsActive = true });
         }
         await context.SaveChangesAsync();
 
@@ -50,9 +57,9 @@ public static class DatabaseSeeder
         await context.SaveChangesAsync();
 
         // 3. Connect SuperAdmin to all Permissions securely
-        var superAdmin = await context.Roles.FirstAsync(r => r.Name == "SuperAdmin");
+        var superAdmin = await context.Roles.FirstAsync(r => r.RoleName == "SuperAdmin");
         var allPerms = await context.Permissions.ToListAsync();
-        
+
         foreach (var p in allPerms)
         {
             if (!await context.RolePermissions.AnyAsync(rp => rp.RoleId == superAdmin.Id && rp.PermissionId == p.Id))
@@ -77,5 +84,24 @@ public static class DatabaseSeeder
             context.UserRoles.Add(new UserRole { UserId = adminUser.Id, RoleId = superAdmin.Id, IsActive = true });
             await context.SaveChangesAsync();
         }
+    }
+
+    private static async Task SeedTestDataFromScriptAsync(AppDbContext context)
+    {
+        const string seedFileName = "seed_all_tables.sql";
+        var scriptPath = Path.Combine(AppContext.BaseDirectory, seedFileName);
+        if (!File.Exists(scriptPath))
+        {
+            scriptPath = Path.Combine(Directory.GetCurrentDirectory(), seedFileName);
+        }
+
+        if (!File.Exists(scriptPath))
+            return;
+
+        var sql = await File.ReadAllTextAsync(scriptPath);
+        if (string.IsNullOrWhiteSpace(sql))
+            return;
+
+        await context.Database.ExecuteSqlRawAsync(sql);
     }
 }

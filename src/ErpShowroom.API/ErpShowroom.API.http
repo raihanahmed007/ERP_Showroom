@@ -4,3 +4,65 @@ GET {{ErpShowroom.API_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Login Test - Admin User
+POST {{ErpShowroom.API_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "usernamePhoneOrEmail": "admin",
+  "password": "Admin123!"
+}
+
+###
+
+# Login Test - Test User
+POST {{ErpShowroom.API_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "usernamePhoneOrEmail": "test@erpshowroom.com",
+  "password": "Test123!"
+}
+
+###
+
+# Login Test - Invalid Credentials
+POST {{ErpShowroom.API_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "usernamePhoneOrEmail": "admin",
+  "password": "WrongPassword"
+}
+
+###
+
+# Logout Test (requires Authorization header from login response)
+POST {{ErpShowroom.API_HostAddress}}/auth/logout
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{}
+
+###
+
+# Refresh Token Test
+POST {{ErpShowroom.API_HostAddress}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+}
+
+###
+
+# Change Password Test (requires Authorization header)
+POST {{ErpShowroom.API_HostAddress}}/auth/change-password
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "oldPassword": "Test123!",
+  "newPassword": "NewTest123!"
+}

@@ -6,6 +6,7 @@ using Hangfire;
 using Microsoft.Extensions.Logging;
 using ErpShowroom.Application.Common.Interfaces;
 using ErpShowroom.Application.fin.WorkflowCommands;
+using ErpShowroom.Domain.Common;
 using ErpShowroom.Domain.fin.Entities;
 
 namespace ErpShowroom.Application.fin.Workflows;
@@ -75,7 +76,7 @@ public class WorkflowOrchestrator
         _logger.LogInformation("Activating Agreement: {AgreementId}", agreementId);
 
         var agreement = await _mediator.Send(new GetAgreementQuery(agreementId));
-        if (agreement.Status == HPAgreementStatus.Approved)
+        if (agreement.Status == HPAgreementStatus.PendingApproval)
         {
             await _mediator.Send(new ApproveHPAgreementCommand(agreementId));
             await _mediator.Send(new GenerateEmiSchedulesCommand(agreementId));

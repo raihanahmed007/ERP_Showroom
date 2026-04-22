@@ -5,10 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using MassTransit;
 using ErpShowroom.Domain.Common.Events;
+using ErpShowroom.Domain.doc.Entities;
 using ErpShowroom.Infrastructure.Persistence;
 
-namespace ErpShowroom.Infrastructure.Messaging.Consumers;
-
+namespace ErpShowroom.Infrastructure.Messaging.Consumers
+{
 public class OcrConsumer : IConsumer<DocumentProcessedEvent>
 {
     private readonly ILogger<OcrConsumer> _logger;
@@ -43,7 +44,7 @@ public class OcrConsumer : IConsumer<DocumentProcessedEvent>
         }
 
         // Check Idempotency based on DocumentId
-        bool alreadyProcessed = await dbContext.Set<Domain.doc.Entities.OcrDocumentData>()
+        bool alreadyProcessed = await dbContext.Set<OcrDocumentData>()
             .AnyAsync(o => o.DocumentId == ev.DocumentId);
 
         if (alreadyProcessed)
@@ -52,21 +53,21 @@ public class OcrConsumer : IConsumer<DocumentProcessedEvent>
             return;
         }
 
-        var ocrData = new Domain.doc.Entities.OcrDocumentData
+        var ocrData = new OcrDocumentData
         {
             DocumentId = ev.DocumentId,
-            CustomerId = ev.CustomerId,
             ExtractedJson = ocrJson,
-            ConfidenceScore = ev.Confidence,
-            ProcessedAt = DateTime.UtcNow,
+            Confidence = (float?)ev.Confidence,
             IsActive = true
         };
 
-        dbContext.Set<Domain.doc.Entities.OcrDocumentData>().Add(ocrData);
+        dbContext.Set<OcrDocumentData>().Add(ocrData);
         await dbContext.SaveChangesAsync(context.CancellationToken);
 
         _logger.LogInformation("OCR processed for document {DocumentId}.", ev.DocumentId);
     }
+}
+
 }
 
 namespace ErpShowroom.Infrastructure.OCR
@@ -74,18 +75,5 @@ namespace ErpShowroom.Infrastructure.OCR
     public interface ITesseractService
     {
         Task<string> ExtractTextAsync(string imagePath);
-    }
-}
-
-namespace ErpShowroom.Domain.doc.Entities
-{
-    // Provide explicit fallback entity
-    public partial class OcrDocumentData : ErpShowroom.Domain.Common.BaseEntity
-    {
-        public long DocumentId { get; set; }
-        public long CustomerId { get; set; }
-        public string? ExtractedJson { get; set; }
-        public decimal ConfidenceScore { get; set; }
-        public DateTime ProcessedAt { get; set; }
     }
 }

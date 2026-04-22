@@ -104,8 +104,8 @@
         isSubmitting = true;
         try
         {
-            var response = await ApiClient.PostAsync("accounting/journal-entries", entry);
-            if (response.IsSuccessStatusCode)
+            var success = await ApiClient.PostAsync<object>("accounting/journal-entries", entry);
+            if (success != null)
             {
                 Snackbar.Add("Journal entry posted successfully!", Severity.Success);
                 entry = new() { Date = DateTime.Today, Lines = new List<JournalLineDto> { new(), new() } };

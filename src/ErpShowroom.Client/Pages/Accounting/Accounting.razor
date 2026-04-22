@@ -1,4 +1,4 @@
-@page "/accounting/journal-entry"
+@page "/accounting"
 @attribute [Authorize]
 @using MudBlazor
 @using ErpShowroom.Client.Services
@@ -103,8 +103,8 @@
 
     async Task SubmitJournal()
     {
-        var response = await ApiClient.PostAsync("accounting/journal-entries", new { Lines = lines });
-        if (response.IsSuccessStatusCode)
+        var success = await ApiClient.PostAsync<object>("accounting/journal-entries", new { Lines = lines });
+        if (success != null)
         {
             Snackbar.Add("Journal Entry submitted", Severity.Success);
             lines = new() { new(), new() };

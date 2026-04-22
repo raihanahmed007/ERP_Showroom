@@ -66,7 +66,7 @@ public class QueryOptimizationService
                 .Select(a => new RecoveryDashboardItem
                 {
                     AgreementNo = a.AgreementNo ?? "N/A",
-                    CustomerName = a.Customer != null ? a.Customer.CustomerName ?? "Unknown" : "Unknown",
+                    CustomerName = a.Customer != null ? a.Customer.FullName ?? "Unknown" : "Unknown",
                     RiskBucket = a.RecoveryBoard != null ? a.RecoveryBoard.RiskBucket : null,
                     // Sum of unpaid EMIs (TotalDue + PenaltyAmount)
                     TotalOverdue = a.EMISchedules!

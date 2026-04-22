@@ -6,10 +6,11 @@ using Microsoft.Extensions.Logging;
 using Hangfire;
 using ErpShowroom.Application.Common.Interfaces;
 using ErpShowroom.Domain.sys.Entities;
+using ErpShowroom.Domain.Common;
 
-namespace ErpShowroom.Infrastructure.BackgroundJobs.Jobs;
-
-// We assume LegalNotice entity exists in Domain somewhere (e.g. fin or doc)
+namespace ErpShowroom.Infrastructure.BackgroundJobs.Jobs
+{
+    // We assume LegalNotice entity exists in Domain somewhere (e.g. fin or doc)
 // If it implies dynamic setting we can use Set<LegalNotice>() or assume it's exposed on DbContext.
 // Let's assume it exists as ErpShowroom.Domain.fin.Entities.LegalNotice
 // For safety we add a local class if user said "Assume entity classes and enums exist".
@@ -33,8 +34,8 @@ public class LegalEscalationJob
         try
         {
             var agreementsToEscalate = await _context.RecoveryBoards
-                .Include(rb => rb.HPAgreement)
-                .Where(rb => rb.RiskBucket == "Days90Plus" && rb.LegalEscalationFlag == false)
+                .Include(rb => rb.Agreement)
+                .Where(rb => rb.RiskBucket == RiskBucketEnum.Days90Plus && rb.LegalEscalationFlag == false)
                 .ToListAsync();
 
             var now = DateTime.UtcNow;
@@ -42,21 +43,11 @@ public class LegalEscalationJob
 
             foreach (var board in agreementsToEscalate)
             {
-                if (board.HPAgreement == null) continue;
+                if (board.Agreement == null) continue;
 
-                // Create Legal Notice
-                var noticeType = Type.GetType("ErpShowroom.Domain.fin.Entities.LegalNotice, ErpShowroom.Domain");
-                if (noticeType != null)
-                {
-                    // Fallback to dynamic if entity is strongly strictly defined elsewhere
-                }
-                
-                // Assuming EF Core allows dynamic addition assuming entity exists
-                // We'll write strongly typed logic if user has them. "Assume entity classes exist"
-                // Let's inject pure EF logic:
                 var notice = new ErpShowroom.Domain.fin.Entities.LegalNotice
                 {
-                    NoticeNo = $"LEG-{board.HPAgreement.AgreementNo}-{now:yyyyMMdd}",
+                    NoticeNo = $"LEG-{board.Agreement.AgreementNo}-{now:yyyyMMdd}",
                     NoticeDate = now,
                     ResponseDeadline = now.AddDays(15),
                     NoticeType = "Final Demand",
@@ -66,7 +57,7 @@ public class LegalEscalationJob
                     IsActive = true
                 };
 
-                _context.Set<ErpShowroom.Domain.fin.Entities.LegalNotice>().Add(notice);
+                _context.LegalNotices.Add(notice);
 
                 board.LegalEscalationFlag = true;
 
@@ -74,14 +65,14 @@ public class LegalEscalationJob
                 var notification = new ErpShowroom.Domain.sys.Entities.Notification
                 {
                     Title = "Legal Escalation Required",
-                    Message = $"Agreement {board.HPAgreement.AgreementNo} has exceeded 90 days. Legal notice generated.",
+                    Message = $"Agreement {board.Agreement.AgreementNo} has exceeded 90 days. Legal notice generated.",
                     NotificationType = "Alert",
                     RelatedEntity = "LegalNotice",
                     CreatedAt = now,
                     IsActive = true
                 };
 
-                _context.Set<ErpShowroom.Domain.sys.Entities.Notification>().Add(notification);
+                _context.Notifications.Add(notification);
 
                 count++;
             }
@@ -100,26 +91,5 @@ public class LegalEscalationJob
         }
     }
 }
-
-namespace ErpShowroom.Domain.fin.Entities
-{
-    // Dummy fallback just in case the compiler requires it, User said assume it exists. 
-    // We add a partial or just the exact definition if not exists.
-    public partial class LegalNotice : ErpShowroom.Domain.Common.BaseEntity
-    {
-        public string? NoticeNo { get; set; }
-        public DateTime? NoticeDate { get; set; }
-        public DateTime? ResponseDeadline { get; set; }
-        public string? NoticeType { get; set; }
-        public string? SentVia { get; set; }
-        public string? DocumentPath { get; set; }
-        public long? HPAgreementId { get; set; }
-    }
-    
-    // Partial to supplement existing entity if missing
-    public partial class RecoveryBoard
-    {
-        public bool? LegalEscalationFlag { get; set; }
-        public string? RiskBucket { get; set; }
-    }
 }
+

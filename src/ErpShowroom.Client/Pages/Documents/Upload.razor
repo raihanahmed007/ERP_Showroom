@@ -8,13 +8,7 @@
 <MudText Typo="Typo.h4" GutterBottom="true">Upload Documents</MudText>
 
 <MudPaper Class="pa-8">
-    <MudFileUpload T="IBrowserFile" FilesChanged="UploadFile" Accept="image/*,application/pdf">
-        <ButtonTemplate>
-            <MudButton HtmlTag="label" Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" for="@context.Id">
-                Choose Document
-            </MudButton>
-        </ButtonTemplate>
-    </MudFileUpload>
+    <MudFileUpload T="IBrowserFile" FilesChanged="UploadFile" Accept="image/*,application/pdf" />
 
     @if (isUploading)
     {
@@ -41,32 +35,48 @@
     {
         isUploading = true;
         uploadProgress = 10;
-        
-        var content = new MultipartFormDataContent();
-        var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024));
-        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
-        content.Add(fileContent, "file", file.Name);
 
-        uploadProgress = 40;
-        var response = await ApiClient.PostContentAsync("documents/upload", content);
-        if (response.IsSuccessStatusCode)
+        try
         {
-            uploadProgress = 70;
-            var docId = await response.Content.ReadFromJsonAsync<long>();
-            Snackbar.Add("File uploaded, starts OCR processing...", Severity.Info);
-            
-            // Trigger OCR
-            var ocrResponse = await ApiClient.PostAsync<object>($"documents/ocr/{docId}", new { });
-            if (ocrResponse.IsSuccessStatusCode)
+            var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+
+            uploadProgress = 40;
+
+            var uploadResponse = await ApiClient.PostContentAsync("documents/upload", content);
+            if (!uploadResponse.IsSuccessStatusCode)
             {
-                ocrData = await ocrResponse.Content.ReadFromJsonAsync<OcrDataDto>();
+                Snackbar.Add("Upload failed", Severity.Error);
+                return;
+            }
+
+            uploadProgress = 70;
+            var docId = await uploadResponse.Content.ReadFromJsonAsync<long>();
+            Snackbar.Add("File uploaded, starting OCR processing...", Severity.Info);
+
+            // PostAsync<OcrDataDto> returns the DTO directly — no .IsSuccessStatusCode needed
+            ocrData = await ApiClient.PostAsync<OcrDataDto>($"documents/ocr/{docId}", new { });
+            if (ocrData != null)
+            {
                 Snackbar.Add("OCR completed successfully", Severity.Success);
             }
-        }
-        else Snackbar.Add("Upload failed", Severity.Error);
+            else
+            {
+                Snackbar.Add("OCR processing failed", Severity.Error);
+            }
 
-        uploadProgress = 100;
-        isUploading = false;
+            uploadProgress = 100;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isUploading = false;
+        }
     }
 
     public class OcrDataDto { public string NidNumber { get; set; } = ""; public string Name { get; set; } = ""; public decimal Confidence { get; set; } }

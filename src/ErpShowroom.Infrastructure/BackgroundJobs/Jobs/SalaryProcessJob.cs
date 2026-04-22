@@ -6,8 +6,8 @@ using Microsoft.Extensions.Logging;
 using Hangfire;
 using ErpShowroom.Application.Common.Interfaces;
 
-namespace ErpShowroom.Infrastructure.BackgroundJobs.Jobs;
-
+namespace ErpShowroom.Infrastructure.BackgroundJobs.Jobs
+{
 public class SalaryProcessJob
 {
     private readonly IApplicationDbContext _context;
@@ -46,7 +46,7 @@ public class SalaryProcessJob
                 if (slipExists) continue;
 
                 // Grab latest salary structure active before/on this target month
-                var structure = await _context.Set<ErpShowroom.Domain.prl.Entities.SalaryStructure>()
+                var structure = await _context.SalaryStructures
                     .Where(s => s.EmployeeId == emp.Id && s.EffectiveFrom <= targetMonth)
                     .OrderByDescending(s => s.EffectiveFrom)
                     .FirstOrDefaultAsync();
@@ -55,11 +55,11 @@ public class SalaryProcessJob
 
                 // Calculate attendances for the target month
                 var attendances = await _context.Attendances
-                    .Where(a => a.EmployeeId == emp.Id && a.Date >= targetMonth && a.Date < targetMonth.AddMonths(1))
+                    .Where(a => a.EmployeeId == emp.Id && a.AttendanceDate >= targetMonth && a.AttendanceDate < targetMonth.AddMonths(1))
                     .ToListAsync();
 
-                decimal presentDays = attendances.Count(a => a.AttendanceStatus == "Present");
-                decimal halfDays = attendances.Count(a => a.AttendanceStatus == "HalfDay");
+                decimal presentDays = attendances.Count(a => a.Status == ErpShowroom.Domain.Common.AttendanceStatus.Present);
+                decimal halfDays = attendances.Count(a => a.Status == ErpShowroom.Domain.Common.AttendanceStatus.HalfDay);
 
                 decimal effectiveDays = presentDays + (halfDays * 0.5m);
                 // Optionally adjust gross based on effectiveDays/workingDaysInMonth, but we simplify to absolute base metrics
@@ -88,7 +88,7 @@ public class SalaryProcessJob
                     GrossSalary = grossSalary,
                     TotalDeductions = totalDeductions,
                     NetPayable = netPayable,
-                    Status = "Processed", // SalaryStatus.Processed
+                    Status = ErpShowroom.Domain.Common.SalaryStatus.Processed,
                     PaymentDate = null,
                     IsActive = true
                 };
@@ -113,47 +113,4 @@ public class SalaryProcessJob
         }
     }
 }
-
-namespace ErpShowroom.Domain.prl.Entities
-{
-    // Provide explicit fallback properties just in case
-    public partial class SalaryStructure : ErpShowroom.Domain.Common.BaseEntity
-    {
-        public long? EmployeeId { get; set; }
-        public DateTime? EffectiveFrom { get; set; }
-        public decimal? Basic { get; set; }
-        public decimal? HouseRent { get; set; }
-        public decimal? Medical { get; set; }
-        public decimal? Transport { get; set; }
-        public decimal? OtherAllowance { get; set; }
-        public decimal? ProvidentFundPct { get; set; }
-        public decimal? TaxDeductionPct { get; set; }
-    }
-    
-    public partial class SalarySlip : ErpShowroom.Domain.Common.BaseEntity
-    {
-        public long? EmployeeId { get; set; }
-        public DateTime? MonthYear { get; set; }
-        public decimal? Basic { get; set; }
-        public decimal? GrossSalary { get; set; }
-        public decimal? TotalDeductions { get; set; }
-        public decimal? NetPayable { get; set; }
-        public string? Status { get; set; }
-        public DateTime? PaymentDate { get; set; }
-    }
-}
-
-namespace ErpShowroom.Domain.hr.Entities
-{
-    public partial class Employee : ErpShowroom.Domain.Common.BaseEntity
-    {
-        public DateTime? TerminationDate { get; set; }
-    }
-    
-    public partial class Attendance : ErpShowroom.Domain.Common.BaseEntity
-    {
-        public long? EmployeeId { get; set; }
-        public DateTime? Date { get; set; }
-        public string? AttendanceStatus { get; set; }
-    }
 }

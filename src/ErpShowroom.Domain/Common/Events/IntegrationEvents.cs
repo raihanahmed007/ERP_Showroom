@@ -3,9 +3,10 @@ using MassTransit;
 
 namespace ErpShowroom.Domain.Common.Events;
 
-//public interface IIntegrationEvent : CorrelatedBy<Guid>
-//{
-//}
+public interface IIntegrationEvent : CorrelatedBy<Guid>
+{
+}
+
 public abstract record IntegrationEvent
 {
     public Guid CorrelationId { get; init; } = Guid.NewGuid();

@@ -31,8 +31,8 @@ public class AuthController : ControllerBase
         _config = config;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
-    [EnableRateLimiting("LoginLimiter")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
         var user = await _context.Users
@@ -61,6 +61,7 @@ public class AuthController : ControllerBase
         return await GenerateAndReturnTokens(user);
     }
 
+    [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
     {
@@ -144,7 +145,11 @@ public class AuthController : ControllerBase
             .Distinct()
             .ToListAsync();
 
-        var roles = user.Roles?.Select(r => r.Role?.Name).Where(n => n != null).ToList() ?? new List<string>();
+        var roles = user.Roles?
+            .Select(r => r.Role?.RoleName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!)
+            .ToList() ?? new List<string>();
 
         var claims = new List<Claim>
         {
@@ -153,6 +158,11 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
             new Claim("roles", string.Join(",", roles))
         };
+
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role!));
+        }
 
         foreach (var p in permissions)
         {

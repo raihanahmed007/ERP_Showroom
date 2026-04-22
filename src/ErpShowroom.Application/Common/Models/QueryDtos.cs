@@ -1,4 +1,5 @@
 using System;
+using ErpShowroom.Domain.Common;
 using ErpShowroom.Domain.fin.Entities;
 
 namespace ErpShowroom.Application.Common.Models;

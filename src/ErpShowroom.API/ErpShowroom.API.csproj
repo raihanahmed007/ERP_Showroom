@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Exclude scratch tool from API compilation -->
+    <Compile Remove="scratch\**\*.cs" />
+    <None Include="scratch\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.0" />
@@ -24,11 +30,14 @@
     <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.Uris" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.2" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ErpShowroom.Application\ErpShowroom.Application.csproj" />
     <ProjectReference Include="..\ErpShowroom.Infrastructure\ErpShowroom.Infrastructure.csproj" />
+    <ProjectReference Include="..\ErpShowroom.Client\ErpShowroom.Client.csproj" />
   </ItemGroup>
 
 </Project>

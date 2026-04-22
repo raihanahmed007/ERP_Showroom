@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ErpShowroom.Infrastructure.Persistence;
 using ErpShowroom.Application.fin.Workflows;
+using ErpShowroom.Domain.Common;
 using ErpShowroom.Domain.fin.Entities;
 
 namespace ErpShowroom.Infrastructure.BackgroundJobs.Jobs;

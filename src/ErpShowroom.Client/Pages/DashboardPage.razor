@@ -1,0 +1,161 @@
+@page "/dashboard"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject IApiClient ApiClient
+@implements IDisposable
+
+<div class="dashboard-root px-8 py-6">
+    <div class="d-flex align-center justify-space-between mb-10">
+        <div>
+            <MudText Typo="Typo.h3" Class="font-bold tracking-tight text-slate-800">Business Intelligence</MudText>
+            <MudText Typo="Typo.body1" Class="text-slate-500">Real-time performance metrics for Himu Motors ERP</MudText>
+        </div>
+        <div class="d-flex gap-4">
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadKpis" Class="rounded-lg">Sync Data</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" Class="rounded-lg">Export Report</MudButton>
+        </div>
+    </div>
+
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <div class="metric-card shadow-lg p-6 rounded-2xl bg-white border border-slate-100 transition-all hover:-translate-y-1">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <div class="icon-box bg-green-50 text-green-600">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" />
+                    </div>
+                </div>
+                <MudText Typo="Typo.caption" Class="text-slate-500 font-medium uppercase tracking-wider">Collection Eff.</MudText>
+                <MudText Typo="Typo.h4" Class="font-bold mt-1 text-slate-800">
+                    @(kpis?.CollectionEfficiency.ToString("P1") ?? "—")
+                </MudText>
+                <div class="mt-4 d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" Color="Color.Success" />
+                    <MudText Typo="Typo.caption" Color="Color.Success" Class="font-bold">+2.4% vs last month</MudText>
+                </div>
+            </div>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <div class="metric-card shadow-lg p-6 rounded-2xl bg-white border border-slate-100 transition-all hover:-translate-y-1">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <div class="icon-box bg-amber-50 text-amber-600">
+                        <MudIcon Icon="@Icons.Material.Filled.Warning" />
+                    </div>
+                </div>
+                <MudText Typo="Typo.caption" Class="text-slate-500 font-medium uppercase tracking-wider">PAR (%)</MudText>
+                <MudText Typo="Typo.h4" Class="font-bold mt-1 text-slate-800">
+                    @(kpis?.PAR.ToString("P1") ?? "—")
+                </MudText>
+                <div class="mt-4 d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" Color="Color.Success" />
+                    <MudText Typo="Typo.caption" Color="Color.Success" Class="font-bold">-0.5% lower risk</MudText>
+                </div>
+            </div>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <div class="metric-card shadow-lg p-6 rounded-2xl bg-white border border-slate-100 transition-all hover:-translate-y-1">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <div class="icon-box bg-blue-50 text-blue-600">
+                        <MudIcon Icon="@Icons.Material.Filled.Autorenew" />
+                    </div>
+                </div>
+                <MudText Typo="Typo.caption" Class="text-slate-500 font-medium uppercase tracking-wider">Recovery Rate</MudText>
+                <MudText Typo="Typo.h4" Class="font-bold mt-1 text-slate-800">
+                    @(kpis?.RecoveryRate.ToString("P1") ?? "—")
+                </MudText>
+                <div class="mt-4 d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.HorizontalRule" Size="Size.Small" Color="Color.Default" />
+                    <MudText Typo="Typo.caption" Class="text-slate-400">Stable benchmark</MudText>
+                </div>
+            </div>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <div class="metric-card shadow-lg p-6 rounded-2xl bg-white border border-slate-100 transition-all hover:-translate-y-1">
+                <div class="d-flex align-center justify-space-between mb-4">
+                    <div class="icon-box bg-indigo-50 text-indigo-600">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" />
+                    </div>
+                </div>
+                <MudText Typo="Typo.caption" Class="text-slate-500 font-medium uppercase tracking-wider">Inv. Turnover</MudText>
+                <MudText Typo="Typo.h4" Class="font-bold mt-1 text-slate-800">
+                    @(kpis?.InventoryTurnover.ToString("N2") ?? "—")
+                </MudText>
+                <div class="mt-4 d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" Color="Color.Success" />
+                    <MudText Typo="Typo.caption" Color="Color.Success" Class="font-bold">+18% inventory flow</MudText>
+                </div>
+            </div>
+        </MudItem>
+
+        <MudItem xs="12" md="8" Class="mt-8">
+            <div class="chart-card shadow-xl p-8 rounded-3xl bg-white border border-slate-100">
+                <MudText Typo="Typo.h6" Class="font-bold mb-6">Efficiency Trends</MudText>
+                <MudChart ChartType="ChartType.Line" ChartSeries="@series" XAxisLabels="@xAxisLabels" Width="100%" Height="350px"></MudChart>
+            </div>
+        </MudItem>
+        
+        <MudItem xs="12" md="4" Class="mt-8">
+            <div class="chart-card shadow-xl p-8 rounded-3xl bg-white border border-slate-100">
+                <MudText Typo="Typo.h6" Class="font-bold mb-6">Asset Allocation</MudText>
+                <MudChart ChartType="ChartType.Donut" InputData="@pieData" InputLabels="@pieLabels" Width="100%" Height="350px" />
+            </div>
+        </MudItem>
+    </MudGrid>
+</div>
+
+@code {
+    private KpiDto? kpis;
+    private PeriodicTimer? timer;
+    
+    public List<ChartSeries> series = new();
+    public string[] xAxisLabels = { "Efficiency", "PAR", "Recovery", "Turnover" };
+    public double[] pieData = new double[0];
+    public string[] pieLabels = { "Collection", "Recovery" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadKpis();
+        timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        _ = RefreshKpisLoop();
+    }
+
+    private async Task LoadKpis()
+    {
+        kpis = await ApiClient.GetAsync<KpiDto>("dashboard/kpis");
+        
+        if (kpis != null)
+        {
+            series = new List<ChartSeries>()
+            {
+                new ChartSeries() { Name = "Performance Metrics", Data = new double[] { (double)kpis.CollectionEfficiency * 100, (double)kpis.PAR * 100, (double)kpis.RecoveryRate * 100, (double)kpis.InventoryTurnover } }
+            };
+            
+            pieData = new double[] { (double)kpis.CollectionEfficiency, (double)kpis.RecoveryRate };
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task RefreshKpisLoop()
+    {
+        if (timer == null) return;
+        try
+        {
+            while (await timer.WaitForNextTickAsync())
+            {
+                await LoadKpis();
+            }
+        }
+        catch { }
+    }
+
+    public void Dispose() => timer?.Dispose();
+
+    public class KpiDto
+    {
+        public decimal CollectionEfficiency { get; set; }
+        public decimal PAR { get; set; }
+        public decimal RecoveryRate { get; set; }
+        public decimal InventoryTurnover { get; set; }
+    }
+}

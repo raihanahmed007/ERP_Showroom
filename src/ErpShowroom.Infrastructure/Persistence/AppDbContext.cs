@@ -27,6 +27,10 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     // sys
+    public DbSet<Company> Companies => Set<Company>();
+    public DbSet<AppModule> Modules => Set<AppModule>();
+    public DbSet<Feature> Features => Set<Feature>();
+    public DbSet<AppPage> Pages => Set<AppPage>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -34,6 +38,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<SmsQueue> SmsQueues => Set<SmsQueue>();
     public DbSet<WhatsAppQueue> WhatsAppQueues => Set<WhatsAppQueue>();
     public DbSet<BISnapshot> BISnapshots => Set<BISnapshot>();
@@ -41,6 +46,16 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<DataWarehouseSyncLog> DataWarehouseSyncLogs => Set<DataWarehouseSyncLog>();
     public DbSet<VectorEmbedding> VectorEmbeddings => Set<VectorEmbedding>();
     public DbSet<PromptTemplate> PromptTemplates => Set<PromptTemplate>();
+    public DbSet<CompanyModuleAccess> CompanyModuleAccesses => Set<CompanyModuleAccess>();
+    public DbSet<PagePermission> PagePermissions => Set<PagePermission>();
+    public DbSet<ApprovalSetup> ApprovalSetups => Set<ApprovalSetup>();
+    public DbSet<UserPageAccess> UserPageAccesses => Set<UserPageAccess>();
+    public DbSet<ReportType> ReportTypes => Set<ReportType>();
+    public DbSet<ReportName> ReportNames => Set<ReportName>();
+    public DbSet<UserDashboardAccess> UserDashboardAccesses => Set<UserDashboardAccess>();
+    public DbSet<DatabaseBackupLog> DatabaseBackupLogs => Set<DatabaseBackupLog>();
+    public DbSet<UserLoginLog> UserLoginLogs => Set<UserLoginLog>();
+    public DbSet<SoftDeleteRegistry> SoftDeleteRegistries => Set<SoftDeleteRegistry>();
     
     // acc
     public DbSet<ChartOfAccount> ChartOfAccounts => Set<ChartOfAccount>();
@@ -143,23 +158,26 @@ public class AppDbContext : DbContext, IApplicationDbContext
         {
             var type = entityType.ClrType;
 
-            // Extract Schema from Namespace (e.g. ErpShowroom.Domain.fin.Entities -> "fin")
             if (type.Namespace != null && type.Namespace.Contains("ErpShowroom.Domain."))
             {
                 var nsParts = type.Namespace.Split('.');
                 if (nsParts.Length >= 4)
                 {
                     var schema = nsParts[2];
-                    if (schema != "Common") 
+                    if (!string.Equals(schema, "Common", StringComparison.OrdinalIgnoreCase))
                     {
-                        var tableName = entityType.GetTableName() ?? type.Name;
-                        entityType.SetTableName(tableName);
+                        if (string.Equals(schema, "sys", StringComparison.OrdinalIgnoreCase))
+                        {
+                            schema = "erp_sys";
+                        }
+
                         entityType.SetSchema(schema);
                     }
+
+                    entityType.SetTableName(type.Name);
                 }
             }
 
-            // Apply Global Query Filter for IsDeleted == false
             if (typeof(BaseEntity).IsAssignableFrom(type))
             {
                 var parameter = Expression.Parameter(type, "e");
@@ -167,7 +185,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
                     Expression.Property(parameter, nameof(BaseEntity.IsDeleted)),
                     Expression.Constant(false, typeof(bool?))
                 );
-                
+
                 var filterLambda = Expression.Lambda(body, parameter);
                 entityType.SetQueryFilter(filterLambda);
             }

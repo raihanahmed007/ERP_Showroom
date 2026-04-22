@@ -103,8 +103,8 @@
             try
             {
                 jobCard.CustomerId = selectedCustomer.Id;
-                var response = await ApiClient.PostAsync("workshop/job-cards", jobCard);
-                if (response.IsSuccessStatusCode)
+                var success = await ApiClient.PostAsyncBool("workshop/job-cards", jobCard);
+                if (success)
                 {
                     Snackbar.Add("Job card created successfully!", Severity.Success);
                     NavigationManager.NavigateTo("/workshop/job-cards/create");

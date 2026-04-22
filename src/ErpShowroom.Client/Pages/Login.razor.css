@@ -1,0 +1,168 @@
+.login-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+}
+
+.animated-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.cube {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: cube-float 20s infinite linear;
+    bottom: -100px;
+}
+
+.cube:nth-child(1) { left: 10%; width: 100px; height: 100px; animation-delay: 0s; }
+.cube:nth-child(2) { left: 30%; width: 60px; height: 60px; animation-delay: 2s; animation-duration: 15s; }
+.cube:nth-child(3) { left: 55%; width: 120px; height: 120px; animation-delay: 4s; }
+.cube:nth-child(4) { left: 75%; width: 80px; height: 80px; animation-delay: 1s; animation-duration: 18s; }
+.cube:nth-child(5) { left: 85%; width: 50px; height: 50px; animation-delay: 3s; }
+.cube:nth-child(6) { left: 40%; width: 90px; height: 90px; animation-delay: 5s; animation-duration: 22s; }
+
+@keyframes cube-float {
+    from { transform: translateY(0) rotate(0deg); opacity: 1; }
+    to { transform: translateY(-120vh) rotate(720deg); opacity: 0; }
+}
+
+.login-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 480px;
+    padding: 20px;
+    animation: fadeIn 1s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    color: white;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.logo-circle {
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+}
+
+.brand-name {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 4px;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.brand-tagline {
+    font-size: 0.9rem;
+    color: #94a3b8;
+}
+
+.error-msg {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+::deep .custom-input .mud-input-filled {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+    color: white !important;
+}
+
+::deep .custom-input .mud-input-label {
+    color: #94a3b8 !important;
+}
+
+::deep .custom-input .mud-input-adornment-start {
+    color: #4f46e5 !important;
+}
+
+.login-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+::deep .remember-me .mud-checkbox-label {
+    color: #94a3b8;
+    font-size: 0.85rem;
+}
+
+.forgot-pass {
+    color: #6366f1 !important;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.submit-btn {
+    height: 56px !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    font-size: 1.1rem !important;
+    background: linear-gradient(to right, #4f46e5, #7c3aed) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+}
+
+.submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4) !important;
+}
+
+.login-footer {
+    margin-top: 40px;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.8rem;
+}

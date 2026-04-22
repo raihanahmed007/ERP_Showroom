@@ -22,7 +22,7 @@ public class Company : BaseEntity
     [Required] public string CompanyName { get; set; } = string.Empty;
     [Required] public string CompanyCode { get; set; } = string.Empty;
     public CompanyType CompanyType { get; set; }
-    public int? ParentCompanyId { get; set; }
+    public long? ParentCompanyId { get; set; }
     [ForeignKey("ParentCompanyId")] public Company? ParentCompany { get; set; }
     public string? Address { get; set; }
     public string? Phone { get; set; }
@@ -45,7 +45,7 @@ public class AppModule : BaseEntity
     public string? Description { get; set; }
     public string? IconName { get; set; }
     public int SortOrder { get; set; }
-    public int? ParentModuleId { get; set; }
+    public long? ParentModuleId { get; set; }
     [ForeignKey("ParentModuleId")] public AppModule? ParentModule { get; set; }
     public string? RoutePrefix { get; set; }
 }
@@ -54,7 +54,7 @@ public class Feature : BaseEntity
 {
     [Required] public string FeatureName { get; set; } = string.Empty;
     [Required] public string FeatureCode { get; set; } = string.Empty;
-    public int ModuleId { get; set; }
+    public long ModuleId { get; set; }
     [ForeignKey("ModuleId")] public AppModule Module { get; set; } = null!;
     public string? Description { get; set; }
     public int SortOrder { get; set; }
@@ -66,7 +66,7 @@ public class AppPage : BaseEntity
 {
     [Required] public string PageName { get; set; } = string.Empty;
     [Required] public string PageCode { get; set; } = string.Empty;
-    public int FeatureId { get; set; }
+    public long FeatureId { get; set; }
     [ForeignKey("FeatureId")] public Feature Feature { get; set; } = null!;
     [Required] public string RouteUrl { get; set; } = string.Empty;
     public string? ComponentName { get; set; }
@@ -104,8 +104,10 @@ public class Role : BaseEntity
     [Required] public string RoleCode { get; set; } = string.Empty;
     public string? Description { get; set; }
     public RoleType RoleType { get; set; }
-    public int? CompanyId { get; set; }
-    [ForeignKey("CompanyId")] public Company? Company { get; set; }
+    public long? ParentCompanyId { get; set; }
+    [ForeignKey("ParentCompanyId")] public Company? Company { get; set; }
+
+    public virtual ICollection<RolePermission>? RolePermissions { get; set; }
 }
 
 [Table("Permissions", Schema = "sys")]
@@ -118,24 +120,24 @@ public class Permission : BaseEntity
 [Table("CompanyModuleAccess", Schema = "sys")]
 public class CompanyModuleAccess : BaseEntity
 {
-    public int CompanyId { get; set; }
+    public long CompanyId { get; set; }
     [ForeignKey("CompanyId")] public Company Company { get; set; } = null!;
-    public int ModuleId { get; set; }
+    public long ModuleId { get; set; }
     [ForeignKey("ModuleId")] public AppModule Module { get; set; } = null!;
     public bool IsEnabled { get; set; }
     public DateTime? ExpiryDate { get; set; }
-    public int GrantedBy { get; set; }
+    public long GrantedBy { get; set; }
     public DateTime GrantedAt { get; set; } = DateTime.UtcNow;
 }
 
 [Table("PagePermissions", Schema = "sys")]
 public class PagePermission : BaseEntity
 {
-    public int RoleId { get; set; }
+    public long RoleId { get; set; }
     [ForeignKey("RoleId")] public Role Role { get; set; } = null!;
-    public int PageId { get; set; }
+    public long PageId { get; set; }
     [ForeignKey("PageId")] public AppPage Page { get; set; } = null!;
-    public int CompanyId { get; set; }
+    public long CompanyId { get; set; }
     public bool CanView { get; set; }
     public bool CanCreate { get; set; }
     public bool CanEdit { get; set; }
@@ -147,26 +149,26 @@ public class PagePermission : BaseEntity
 [Table("ApprovalSetups", Schema = "sys")]
 public class ApprovalSetup : BaseEntity
 {
-    public int CompanyId { get; set; }
-    public int PageId { get; set; }
+    public long CompanyId { get; set; }
+    public long PageId { get; set; }
     [ForeignKey("PageId")] public AppPage Page { get; set; } = null!;
     public int StepOrder { get; set; }
-    public int? ApproverRoleId { get; set; }
-    public int? ApproverUserId { get; set; }
+    public long? ApproverRoleId { get; set; }
+    public long? ApproverUserId { get; set; }
     public bool IsParallel { get; set; }
     public int TimeoutHours { get; set; }
-    public int? EscalationRoleId { get; set; }
+    public long? EscalationRoleId { get; set; }
 }
 
 
 [Table("UserPageAccess", Schema = "sys")]
 public class UserPageAccess : BaseEntity
 {
-    public int UserId { get; set; }
-    [ForeignKey("UserId")] public AppUser User { get; set; } = null!;
-    public int PageId { get; set; }
+    public long UserId { get; set; }
+    [ForeignKey("UserId")] public User User { get; set; } = null!;
+    public long PageId { get; set; }
     [ForeignKey("PageId")] public AppPage Page { get; set; } = null!;
-    public int CompanyId { get; set; }
+    public long CompanyId { get; set; }
     public bool CanView { get; set; }
     public bool CanCreate { get; set; }
     public bool CanEdit { get; set; }
@@ -207,7 +209,7 @@ public class ReportType : BaseEntity
     [Required] public string ReportTypeName { get; set; } = string.Empty;
     [Required] public string ReportTypeCode { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public int ModuleId { get; set; }
+    public long ModuleId { get; set; }
     [ForeignKey("ModuleId")] public AppModule Module { get; set; } = null!;
     public int SortOrder { get; set; }
 }
@@ -217,7 +219,7 @@ public class ReportName : BaseEntity
 {
     [Required] public string Name { get; set; } = string.Empty;
     [Required] public string ReportCode { get; set; } = string.Empty;
-    public int ReportTypeId { get; set; }
+    public long ReportTypeId { get; set; }
     [ForeignKey("ReportTypeId")] public ReportType ReportType { get; set; } = null!;
     public string? Description { get; set; }
     public string? ReportQuery { get; set; }
@@ -229,8 +231,8 @@ public class ReportName : BaseEntity
 [Table("UserDashboardAccess", Schema = "sys")]
 public class UserDashboardAccess : BaseEntity
 {
-    public int UserId { get; set; }
-    public int CompanyId { get; set; }
+    public long UserId { get; set; }
+    public long CompanyId { get; set; }
     public string? DashboardWidgets { get; set; }
     public string? LayoutConfig { get; set; }
     public bool IsCustomized { get; set; }
@@ -385,7 +387,7 @@ public class DatabaseBackupLog : BaseEntity
 [Table("UserLoginLogs", Schema = "sys")]
 public class UserLoginLog : BaseEntity
 {
-    public int UserId { get; set; }
+    public long UserId { get; set; }
     public string? Username { get; set; }
     public DateTime LoginAt { get; set; }
     public DateTime? LogoutAt { get; set; }
@@ -397,5 +399,5 @@ public class UserLoginLog : BaseEntity
     public bool IsSuccess { get; set; }
     public string? FailureReason { get; set; }
     public int? SessionDuration { get; set; }
-    public int? CompanyId { get; set; }
+    public long? CompanyId { get; set; }
 }

@@ -28,10 +28,10 @@ public class StockSyncConsumer : IConsumer<SerialTransferredEvent>
         try
         {
             var sourceBalance = await _context.StockBalances
-                .FirstOrDefaultAsync(b => b.ProductId == ev.ProductId && b.BranchId == ev.FromBranchId, context.CancellationToken);
+                .FirstOrDefaultAsync(b => b.ProductId == ev.ProductId && b.LocationId == (int?)ev.FromBranchId, context.CancellationToken);
 
             var destBalance = await _context.StockBalances
-                .FirstOrDefaultAsync(b => b.ProductId == ev.ProductId && b.BranchId == ev.ToBranchId, context.CancellationToken);
+                .FirstOrDefaultAsync(b => b.ProductId == ev.ProductId && b.LocationId == (int?)ev.ToBranchId, context.CancellationToken);
 
             if (sourceBalance != null && sourceBalance.QuantityOnHand > 0)
             {
@@ -47,7 +47,7 @@ public class StockSyncConsumer : IConsumer<SerialTransferredEvent>
                 destBalance = new Domain.inv.Entities.StockBalance
                 {
                     ProductId = ev.ProductId,
-                    BranchId = ev.ToBranchId,
+                    LocationId = (int?)ev.ToBranchId,
                     QuantityOnHand = 1,
                     IsActive = true
                 };

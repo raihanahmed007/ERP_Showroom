@@ -53,8 +53,9 @@
         if (form.IsValid && selectedCustomer != null)
         {
             agreement.CustomerId = selectedCustomer.Id;
-            var response = await ApiClient.PostAsync("agreements", agreement);
-            if (response.IsSuccessStatusCode)
+
+            var success = await ApiClient.PostAsyncBool("agreements", agreement);
+            if (success)
             {
                 Snackbar.Add("Agreement created successfully", Severity.Success);
                 NavigationManager.NavigateTo("/agreements");

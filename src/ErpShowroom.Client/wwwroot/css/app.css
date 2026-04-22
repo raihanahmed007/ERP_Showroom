@@ -110,6 +110,42 @@ code {
     text-align: end;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-    text-align: start;
+.form-floating > .form-control-plaintext:focus::placeholder, .dashboard-root {
+    background-color: #f8fafc;
+    min-height: 100vh;
 }
+
+.metric-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metric-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chart-card {
+    background: white;
+    transition: all 0.3s ease;
+}
+
+/* Tailwind-ish utility colors */
+.bg-green-50 { background-color: #f0fdf4; }
+.text-green-600 { color: #16a34a; }
+.bg-amber-50 { background-color: #fffbeb; }
+.text-amber-600 { color: #d97706; }
+.bg-blue-50 { background-color: #eff6ff; }
+.text-blue-600 { color: #2563eb; }
+.bg-indigo-50 { background-color: #eef2ff; }
+.text-indigo-600 { color: #4f46e5; }
+.text-slate-800 { color: #1e293b; }
+.text-slate-500 { color: #64748b; }
+.text-slate-400 { color: #94a3b8; }

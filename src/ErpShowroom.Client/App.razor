@@ -1,25 +1,29 @@
+@using Microsoft.AspNetCore.Components.Authorization
+
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    @if (context.User.Identity?.IsAuthenticated == false)
+                    @if (context.User.Identity?.IsAuthenticated != true)
                     {
                         <RedirectToLogin />
                     }
                     else
                     {
-                        <MudText Typo="Typo.h3">Access Denied</MudText>
-                        <MudText>You do not have permission to view this page.</MudText>
+                        <MudAlert Severity="Severity.Warning">
+                            You do not have permission to view this page.
+                        </MudAlert>
                     }
                 </NotAuthorized>
+                <Authorizing>
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                </Authorizing>
             </AuthorizeRouteView>
-            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
         </Found>
         <NotFound>
-            <PageTitle>Not found</PageTitle>
             <LayoutView Layout="@typeof(MainLayout)">
-                <p role="alert">Sorry, there's nothing at this address.</p>
+                <MudText Typo="Typo.h5">Page not found.</MudText>
             </LayoutView>
         </NotFound>
     </Router>

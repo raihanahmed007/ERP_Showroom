@@ -1,40 +1,164 @@
+@page "/login"
+@layout EmptyLayout
 @using MudBlazor
 @using ErpShowroom.Client.Services
 @using ErpShowroom.Application.sys.DTOs
-@page "/login"
-@layout EmptyLayout
+@using Microsoft.AspNetCore.Components.Authorization
+@using Blazored.LocalStorage
 @inject IApiClient ApiClient
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
+@inject CustomAuthStateProvider AuthProvider
+@inject ILocalStorageService LocalStorage
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
-    <MudPaper Elevation="4" Class="pa-8">
-        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">ERP Login</MudText>
-        <MudForm @ref="form" @bind-IsValid="@success">
-            <MudTextField T="string" Label="Username/Phone/Email" @bind-Value="loginRequest.UsernamePhoneOrEmail" Required="true" />
-            <MudTextField T="string" Label="Password" @bind-Value="loginRequest.Password" InputType="InputType.Password" Required="true" />
-            <div class="d-flex align-center justify-space-between mt-6">
-                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" Disabled="@(!success)" OnClick="HandleLogin">Login</MudButton>
+<div class="login-wrapper">
+    <div class="animated-bg">
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="cube"></div>
+    </div>
+
+    <div class="login-content">
+        <div class="glass-card">
+            <div class="login-header">
+                <div class="logo-circle">
+                    <MudIcon Icon="@Icons.Material.Filled.AutoGraph" Size="Size.Large" Color="Color.Primary" />
+                </div>
+                <h1 class="brand-name">HIMU MOTORS</h1>
+                <p class="brand-tagline">Advanced Enterprise Resource Planning</p>
             </div>
-        </MudForm>
-    </MudPaper>
-</MudContainer>
+
+            <div class="login-form-area">
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="error-msg">
+                        <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Size="Size.Small" Class="mr-2"/>
+                        @_errorMessage
+                    </div>
+                }
+
+                <EditForm Model="@_loginRequest" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+
+                    <div class="input-group">
+                        <MudTextField @bind-Value="_loginRequest.UsernamePhoneOrEmail"
+                                      Label="Identifier"
+                                      Placeholder="Username / Email / Phone"
+                                      Variant="Variant.Filled"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.AccountCircle"
+                                      For="@(() => _loginRequest.UsernamePhoneOrEmail)"
+                                      FullWidth="true"
+                                      Class="custom-input"/>
+                    </div>
+
+                    <div class="input-group">
+                        <MudTextField @bind-Value="_loginRequest.Password"
+                                      Label="Password"
+                                      Placeholder="••••••••"
+                                      Variant="Variant.Filled"
+                                      InputType="@_passwordInput"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@_passwordIcon"
+                                      OnAdornmentClick="TogglePassword"
+                                      For="@(() => _loginRequest.Password)"
+                                      FullWidth="true"
+                                      Class="custom-input"/>
+                    </div>
+
+                    <div class="login-actions">
+                        <MudCheckBox T="bool" Label="Remember session" Color="Color.Primary" Dense="true" Class="remember-me" />
+                        <MudLink Typo="Typo.body2" Underline="Underline.None" Class="forgot-pass">Recovery</MudLink>
+                    </div>
+
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Class="submit-btn"
+                               Disabled="@_busy">
+                        @if (_busy)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>Authenticating...</span>
+                        }
+                        else
+                        {
+                            <span>Launch Workspace</span>
+                        }
+                    </MudButton>
+                </EditForm>
+            </div>
+
+            <div class="login-footer">
+                <p>&copy; 2026 ErpShowroom v2.0. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
-    MudForm form = default!;
-    bool success;
-    LoginRequestDto loginRequest = new();
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
 
-    async Task HandleLogin()
+    private readonly LoginRequestDto _loginRequest = new();
+    private bool _busy;
+    private string? _errorMessage;
+
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePassword()
     {
-        var result = await ApiClient.LoginAsync(loginRequest);
-        if (result != null)
+        if (_passwordInput == InputType.Password)
         {
-            NavigationManager.NavigateTo("/");
+            _passwordInput = InputType.Text;
+            _passwordIcon = Icons.Material.Filled.Visibility;
         }
         else
         {
-            Snackbar.Add("Invalid credentials", Severity.Error);
+            _passwordInput = InputType.Password;
+            _passwordIcon = Icons.Material.Filled.VisibilityOff;
         }
+    }
+
+    private async Task HandleLogin()
+    {
+        Console.WriteLine("Login: Starting HandleLogin...");
+        _busy = true;
+        _errorMessage = null;
+
+        try
+        {
+            Console.WriteLine($"Login: Calling API with user: {_loginRequest.UsernamePhoneOrEmail}");
+            var result = await ApiClient.LoginAsync(_loginRequest);
+
+            if (result != null && !string.IsNullOrEmpty(result.AccessToken))
+            {
+                Console.WriteLine("Login: Success, navigating to dashboard");
+                Snackbar.Add("Authentication Successful", Severity.Success);
+                
+                var destination = string.IsNullOrWhiteSpace(ReturnUrl)
+                    ? "dashboard"
+                    : Uri.UnescapeDataString(ReturnUrl);
+
+                // Allow state provider to propagate state change before navigation
+                await Task.Delay(100);
+                NavigationManager.NavigateTo(destination);
+            }
+            else
+            {
+                Console.WriteLine("Login: Result was null or token missing");
+                _errorMessage = "Invalid credentials provided.";
+            }
+        }
+        catch (Exception ex) 
+        { 
+            Console.WriteLine($"Login: EXCEPTION - {ex.GetType().Name}: {ex.Message}");
+            _errorMessage = "System connection failure."; 
+        }
+        finally { _busy = false; }
     }
 }

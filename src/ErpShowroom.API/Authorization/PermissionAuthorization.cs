@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using ErpShowroom.Infrastructure.Persistence;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace ErpShowroom.API.Authorization;
@@ -24,7 +25,8 @@ public class PermissionAuthorizationHandler(AppDbContext dbContext, Microsoft.Ex
         if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId)) return;
 
         string cacheKey = $"UserPermissions_{userId}";
-        if (!cache.TryGetValue(cacheKey, out System.Collections.Generic.List<string>? userPermissions))
+        var userPermissions = new System.Collections.Generic.List<string>();
+        if (!cache.TryGetValue(cacheKey, out object? cachedPermissions))
         {
             userPermissions = await dbContext.UserRoles
                 .Where(ur => ur.UserId == userId && ur.Role != null && ur.User != null && ur.User.IsActive == true)
@@ -35,8 +37,12 @@ public class PermissionAuthorizationHandler(AppDbContext dbContext, Microsoft.Ex
 
             cache.Set(cacheKey, userPermissions, System.TimeSpan.FromMinutes(5));
         }
+        else
+        {
+            userPermissions = cachedPermissions as System.Collections.Generic.List<string> ?? new System.Collections.Generic.List<string>();
+        }
 
-        if (userPermissions != null && userPermissions.Contains(requirement.PermissionKey))
+        if (userPermissions.Contains(requirement.PermissionKey))
         {
             context.Succeed(requirement);
         }

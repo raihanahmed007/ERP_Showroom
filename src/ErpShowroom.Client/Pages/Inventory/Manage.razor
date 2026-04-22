@@ -1,4 +1,4 @@
-@page "/inventory"
+@page "/inventory/manage"
 @attribute [Authorize]
 @using MudBlazor
 @using ErpShowroom.Client.Services
@@ -123,8 +123,8 @@
         transferRequest.SerialIds = availableSerials.Where(s => s.IsSelected).Select(s => s.Id).ToList();
         if (transferRequest.SerialIds.Count == 0) return;
 
-        var response = await ApiClient.PostAsync("inventory/transfers", transferRequest);
-        if (response.IsSuccessStatusCode)
+        var success = await ApiClient.PostAsyncBool("inventory/transfers", transferRequest);
+        if (success)
         {
             Snackbar.Add("Transfer completed successfully", Severity.Success);
             await LoadProducts();

@@ -38,7 +38,7 @@ public class ApplyPaymentCommandHandler
         var payment = new Payment
         {
             HPAgreementId = agreement.Id,
-            AmountPaid = request.Amount,
+            Amount = request.Amount,
             PaymentDate = DateTime.UtcNow,
             IsActive = true
         };

@@ -5,7 +5,7 @@ namespace ErpShowroom.Application.Common.Behaviors;
 public class ValidationBehavior<TRequest, TResponse>(
     IEnumerable<FluentValidation.IValidator<TRequest>> validators)
     : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : notnull
+    where TRequest : IRequest<TResponse>
 {
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct)
     {

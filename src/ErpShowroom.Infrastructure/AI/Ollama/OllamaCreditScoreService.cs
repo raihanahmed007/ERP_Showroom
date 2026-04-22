@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ErpShowroom.Application.Common.Interfaces;
+using ErpShowroom.Domain.Common;
 using ErpShowroom.Domain.fin.Entities;
 
 namespace ErpShowroom.Infrastructure.AI.Ollama;
@@ -47,7 +48,7 @@ public class OllamaCreditScoreService : ICreditScoreService
             var pastAgreementsCount = customer.HPAgreements?.Count ?? 0;
             var latePaymentsCount = customer.HPAgreements?
                 .SelectMany(a => a.EMISchedules!)
-                .Count(s => s.Status == Domain.fin.Entities.EMIPaymentStatus.Overdue) ?? 0;
+                .Count(s => s.Status == EMIPaymentStatus.Overdue) ?? 0;
             
             // Check if customer has any guarantor in fin.Guarantors table.
             var hasGuarantor = await _dbContext.HPAgreements

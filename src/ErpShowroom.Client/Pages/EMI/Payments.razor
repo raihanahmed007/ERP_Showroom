@@ -93,8 +93,8 @@
     {
         if (selectedEmi == null) return;
 
-        var response = await ApiClient.PostAsync("emi/payments", payment);
-        if (response.IsSuccessStatusCode)
+        var success = await ApiClient.PostAsyncBool("emi/payments", payment);
+        if (success)
         {
             Snackbar.Add("Payment collected successfully", Severity.Success);
             CloseDialog();

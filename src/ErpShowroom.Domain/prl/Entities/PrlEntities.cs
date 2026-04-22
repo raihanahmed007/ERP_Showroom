@@ -27,6 +27,7 @@ public class SalarySlip : BaseEntity
 {
     public long? EmployeeId { get; set; }
     public DateTime? MonthYear { get; set; }
+    public decimal? Basic { get; set; }
     public decimal? GrossSalary { get; set; }
     public decimal? TotalDeductions { get; set; }
     public decimal? NetPayable { get; set; }

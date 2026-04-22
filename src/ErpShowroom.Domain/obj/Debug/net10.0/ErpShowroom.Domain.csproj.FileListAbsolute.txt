@@ -1,4 +1,0 @@
-D:\ERP_SHOWROOM\src\ErpShowroom.Domain\obj\Debug\net10.0\ErpShowroom.Domain.GeneratedMSBuildEditorConfig.editorconfig
-D:\ERP_SHOWROOM\src\ErpShowroom.Domain\obj\Debug\net10.0\ErpShowroom.Domain.AssemblyInfoInputs.cache
-D:\ERP_SHOWROOM\src\ErpShowroom.Domain\obj\Debug\net10.0\ErpShowroom.Domain.AssemblyInfo.cs
-D:\ERP_SHOWROOM\src\ErpShowroom.Domain\obj\Debug\net10.0\ErpShowroom.Domain.csproj.CoreCompileInputs.cache

@@ -27,13 +27,14 @@ public class UploadDocumentHandler(IApplicationDbContext db) : IRequestHandler<U
 }
 
 public record RunOcrCommand(long DocumentId) : IRequest<bool>;
-public class RunOcrHandler(IApplicationDbContext db, IOcrService ocrService) : IRequestHandler<RunOcrCommand, bool> {
+public class RunOcrHandler(IApplicationDbContext db, ITesseractOcrService ocrService) : IRequestHandler<RunOcrCommand, bool> {
     public async Task<bool> Handle(RunOcrCommand request, CancellationToken ct) {
         var doc = await db.StoredDocuments.FirstOrDefaultAsync(d => d.Id == request.DocumentId, ct);
         if (doc == null || string.IsNullOrEmpty(doc.BlobPath)) return false;
         
-        var text = ocrService.ExtractText(doc.BlobPath);
-        doc.OCRText = text;
+        var fileBytes = await File.ReadAllBytesAsync(doc.BlobPath, ct);
+        var result = await ocrService.ExtractTextAsync(fileBytes, "document", ct);
+        doc.OCRText = result.RawText;
         await db.SaveChangesAsync(ct);
         return true;
     }

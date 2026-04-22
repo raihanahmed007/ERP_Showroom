@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
+using Serilog;
 using System.Threading.Tasks;
 using ErpShowroom.Application.fin.Commands;
 using ErpShowroom.Domain.Common;
@@ -22,7 +23,7 @@ public class AgreementsController : CrudControllerBase<HPAgreement>
     public async Task<IActionResult> CreateHP([FromBody] CreateHPAgreementCommand command)
     {
         var result = await _mediator.Send(command);
-        Log.Information("HP Agreement created with reference {AgreementNo}. Value: {Value}", result, command.AgreementValue);
+        Log.Information("HP Agreement created with reference {AgreementNo} for CustomerId {CustomerId}", result, command.CustomerId);
         return Ok(result);
     }
 

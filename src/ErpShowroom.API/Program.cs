@@ -1,10 +1,12 @@
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
 using ErpShowroom.Application;
 using ErpShowroom.Infrastructure;
+using RabbitMQ.Client;
 using ErpShowroom.Infrastructure.BackgroundJobs;
 using ErpShowroom.Infrastructure.OCR;
 using OpenTelemetry.Resources;
@@ -21,8 +23,12 @@ using ErpShowroom.Infrastructure.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.StaticFiles;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Enable Static Web Assets for development (Required for Blazor WASM Hosted)
+builder.WebHost.UseStaticWebAssets();
 
 // -- 1. Serilog Logging ----------------------------------------------------
 Log.Logger = new LoggerConfiguration()
@@ -38,43 +44,51 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// -- 2. OpenTelemetry (Tracing + Metrics) ----------------------------------
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing
-        .SetResourceBuilder(ResourceBuilder.CreateDefault()
-            .AddService("ErpShowroom.API", serviceVersion: "1.0.0"))
-        .AddAspNetCoreInstrumentation(opt => 
-        {
-            opt.RecordException = true;
-        })
-        .AddEntityFrameworkCoreInstrumentation(opt =>
-        {
-            opt.SetDbStatementForText = true;
-            opt.SetDbStatementForStoredProcedure = true;
-        })
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter(opt => 
-        {
-            // Jaeger supports OTLP on port 4317 (gRPC) or 4318 (HTTP/JSON)
-            // User requested http://localhost:14268/api/traces (HTTP Thrift)
-            // Note: Modern OTLP exporter is more robust. 
-            opt.Endpoint = new Uri("http://localhost:4317"); 
-        }))
-    .WithMetrics(metrics => metrics
-        .AddAspNetCoreInstrumentation()
-        .AddMeter("ErpShowroom.Metrics"));
+// // -- 2. OpenTelemetry (Tracing + Metrics) ----------------------------------
+// builder.Services.AddOpenTelemetry()
+//     .WithTracing(tracing => tracing
+//         .SetResourceBuilder(ResourceBuilder.CreateDefault()
+//             .AddService("ErpShowroom.API", serviceVersion: "1.0.0"))
+//         .AddAspNetCoreInstrumentation(opt => 
+//         {
+//             opt.RecordException = true;
+//         })
+//         .AddEntityFrameworkCoreInstrumentation(opt =>
+//         {
+//             opt.SetDbStatementForText = true;
+//             opt.SetDbStatementForStoredProcedure = true;
+//         })
+//         .AddHttpClientInstrumentation()
+//         .AddOtlpExporter(opt => 
+//         {
+//             // Jaeger supports OTLP on port 4317 (gRPC) or 4318 (HTTP/JSON)
+//             // User requested http://localhost:14268/api/traces (HTTP Thrift)
+//             // Note: Modern OTLP exporter is more robust. 
+//             opt.Endpoint = new Uri("http://localhost:4317"); 
+//         }))
+//     .WithMetrics(metrics => metrics
+//         .AddAspNetCoreInstrumentation()
+//         .AddMeter("ErpShowroom.Metrics"));
 
 // -- 3. Application + Infrastructure -----------------------------------------
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddMemoryCache();
+builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
 builder.Services.AddScoped<IEncryptionService, DataProtectionEncryptionService>();
 builder.Services.AddScoped<ErpShowroom.Application.fin.Workflows.WorkflowOrchestrator>();
 
 // -- Data Protection --
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ErpShowroom-Keys")))
-    .ProtectKeysWithDpapi()
-    .SetApplicationName("ErpShowroom");
+var dpBuilder = builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ErpShowroom-Keys")));
+
+if (OperatingSystem.IsWindows())
+{
+    dpBuilder = dpBuilder.ProtectKeysWithDpapi();
+}
+
+dpBuilder.SetApplicationName("ErpShowroom");
 
 // -- 4. Register Services --------------------------------------------------
 builder.Services.AddTesseractOcr(builder.Configuration);
@@ -96,54 +110,47 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Removed FallbackPolicy to allow anonymous access to SPA routes
+});
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider, ErpShowroom.API.Authorization.PermissionPolicyProvider>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, ErpShowroom.API.Authorization.PermissionAuthorizationHandler>();
 
-builder.Services.AddRateLimiter(options =>
+// builder.Services.AddRateLimiter(options =>
+// {
+//     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+//     options.AddFixedWindowLimiter("ApiLimiter", opt =>
+//     {
+//         opt.Window = TimeSpan.FromMinutes(1);
+//         opt.PermitLimit = 100;
+//         opt.QueueLimit = 0;
+//     });
+
+//     options.AddFixedWindowLimiter("LoginLimiter", opt =>
+//     {
+//         opt.Window = TimeSpan.FromMinutes(1);
+//         opt.PermitLimit = 5;
+//         opt.QueueLimit = 0;
+//     });
+// });
+
+builder.Services.AddHttpClient("Ollama", client =>
 {
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-    options.AddFixedWindowLimiter("ApiLimiter", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 100;
-        opt.QueueLimit = 0;
-    });
-
-    options.AddFixedWindowLimiter("LoginLimiter", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 5;
-        opt.QueueLimit = 0;
-    });
+    client.BaseAddress = new Uri(builder.Configuration["AI:OllamaBaseUrl"] ?? "http://localhost:11434");
+    client.Timeout = TimeSpan.FromSeconds(builder.Configuration.GetValue<int?>("AI:TimeoutSeconds") ?? 30);
 });
 
-// -- 6. Swagger ------------------------------------------------------------
+// -- 6. OpenAPI (minimal setup) -----------------------------------------------
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new() { Title = "ERP Showroom API", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new()
-    {
-        Name = "Authorization", Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer", BearerFormat = "JWT",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header
-    });
-    c.AddSecurityRequirement(new()
-    {
-        {
-            new() { Reference = new() { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "Bearer" }},
-            Array.Empty<string>()
-        }
-    });
-});
+builder.Services.AddOpenApi();
 
 // -- 7. Health Checks ------------------------------------------------------
 builder.Services.AddHealthChecks()
     .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!, name: "sqlserver")
     .AddRedis(builder.Configuration.GetConnectionString("Redis")!, name: "redis")
-    .AddRabbitMQ(new Uri(builder.Configuration.GetConnectionString("RabbitMQ") ?? "amqp://guest:guest@localhost:5672"), name: "rabbitmq")
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq")
     .AddCheck<TesseractHealthCheck>("tesseract")
     .AddCheck<OllamaHealthCheck>("ollama");
 
@@ -152,10 +159,9 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("ErpCorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:5000", "https://erp.yourcompany.com")
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
@@ -163,24 +169,27 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
 }
 
 app.UseSerilogRequestLogging();
 
-app.UseMiddleware<SecurityHeadersMiddleware>();
+// app.UseMiddleware<SecurityHeadersMiddleware>();
 
 app.UseCors("ErpCorsPolicy");
-app.UseRateLimiter();
+
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+app.MapStaticAssets();
 
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseHangfireJobs();
-app.MapControllers().RequireRateLimiting("ApiLimiter");
+app.MapRazorPages();
+app.MapControllers();
+app.MapFallbackToFile("index.html");
 
 // Detailed Health Check Response
 app.MapHealthChecks("/health", new HealthCheckOptions
@@ -195,8 +204,8 @@ using (var scope = app.Services.CreateScope())
     {
         var services = scope.ServiceProvider;
         var dbContext = services.GetRequiredService<ErpShowroom.Infrastructure.Persistence.AppDbContext>();
-        dbContext.Database.EnsureCreated();
-        ErpShowroom.Infrastructure.Persistence.DatabaseSeeder.SeedAsync(dbContext).GetAwaiter().GetResult();
+        dbContext.Database.Migrate();
+        await ErpShowroom.Infrastructure.Data.DataSeeder.SeedAsync(dbContext);
         Log.Information("Database initialization successful");
     }
     catch (Exception ex)

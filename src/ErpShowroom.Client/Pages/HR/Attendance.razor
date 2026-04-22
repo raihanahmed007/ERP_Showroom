@@ -57,11 +57,21 @@
 
     async Task CheckIn()
     {
-        var response = await ApiClient.PostAsync("hr/attendance", new { CheckInTime = DateTime.UtcNow, Latitude = latitude, Longitude = longitude });
-        if (response.IsSuccessStatusCode)
+        var success = await ApiClient.PostAsyncBool("hr/attendance", new
+        {
+            CheckInTime = DateTime.UtcNow,
+            Latitude = latitude,
+            Longitude = longitude
+        });
+
+        if (success)
         {
             Snackbar.Add("Checked in successfully", Severity.Success);
             await LoadHistory();
+        }
+        else
+        {
+            Snackbar.Add("Failed to check in", Severity.Error);
         }
     }
 

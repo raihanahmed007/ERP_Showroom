@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MassTransit;
 using ErpShowroom.Application.Common.Interfaces;
+using ErpShowroom.Domain.Common;
 using ErpShowroom.Domain.Common.Events;
 using ErpShowroom.Domain.fin.Entities;
 
@@ -40,8 +41,8 @@ public class CreateAgreementCommandHandler
         {
             CustomerId = request.CustomerId,
             AgreementNo = $"HP-{DateTime.UtcNow:yyyyMMdd}-{request.CustomerId}-{Guid.NewGuid().ToString().Substring(0, 4)}",
-            TotalFinancedAmount = request.TotalAmount,
-            Status = "Active",
+            FinanceAmount = request.TotalAmount,
+            Status = HPAgreementStatus.Active,
             IsActive = true
         };
 

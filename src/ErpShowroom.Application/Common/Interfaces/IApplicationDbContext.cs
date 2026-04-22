@@ -19,6 +19,10 @@ namespace ErpShowroom.Application.Common.Interfaces;
 public interface IApplicationDbContext
 {
     // sys
+    DbSet<Company> Companies { get; }
+    DbSet<AppModule> Modules { get; }
+    DbSet<Feature> Features { get; }
+    DbSet<AppPage> Pages { get; }
     DbSet<User> Users { get; }
     DbSet<Role> Roles { get; }
     DbSet<Permission> Permissions { get; }
@@ -26,6 +30,15 @@ public interface IApplicationDbContext
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<Branch> Branches { get; }
+    DbSet<Notification> Notifications { get; }
+    DbSet<CompanyModuleAccess> CompanyModuleAccesses { get; }
+    DbSet<PagePermission> PagePermissions { get; }
+    DbSet<UserPageAccess> UserPageAccesses { get; }
+    DbSet<ReportType> ReportTypes { get; }
+    DbSet<ReportName> ReportNames { get; }
+    DbSet<UserDashboardAccess> UserDashboardAccesses { get; }
+    DbSet<DatabaseBackupLog> DatabaseBackupLogs { get; }
+    DbSet<UserLoginLog> UserLoginLogs { get; }
     
     // acc
     DbSet<ChartOfAccount> ChartOfAccounts { get; }
@@ -40,6 +53,7 @@ public interface IApplicationDbContext
     DbSet<Payment> Payments { get; }
     DbSet<Penalty> Penalties { get; }
     DbSet<RecoveryBoard> RecoveryBoards { get; }
+    DbSet<LegalNotice> LegalNotices { get; }
 
     // inv
     DbSet<Product> Products { get; }
@@ -67,11 +81,13 @@ public interface IApplicationDbContext
     DbSet<Leave> Leaves { get; }
 
     // prl
+    DbSet<SalaryStructure> SalaryStructures { get; }
     DbSet<SalarySlip> SalarySlips { get; }
 
     // doc
     DbSet<DocumentCategory> DocumentCategories { get; }
     DbSet<StoredDocument> StoredDocuments { get; }
+    DbSet<OcrDocumentData> OcrDocumentDatas { get; }
 
     // bank
     DbSet<BankAccount> BankAccounts { get; }
@@ -81,5 +97,6 @@ public interface IApplicationDbContext
     DbSet<WorkflowDefinition> WorkflowDefinitions { get; }
     DbSet<ApprovalHistory> ApprovalHistories { get; }
 
+    DbSet<TEntity> Set<TEntity>() where TEntity : class;
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

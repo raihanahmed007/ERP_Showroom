@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Hangfire;
 using ErpShowroom.Application.Common.Interfaces;
+using ErpShowroom.Domain.Common;
 
 namespace ErpShowroom.Infrastructure.BackgroundJobs.Jobs;
 
@@ -30,7 +31,7 @@ public class RiskBucketUpdateJob
             // We fetch active agreements.
             var activeAgreementsQuery = _context.HPAgreements
                 .Include(a => a.RecoveryBoard)
-                .Where(a => a.Status == "Active") // HPAgreementStatus.Active
+                .Where(a => a.Status == HPAgreementStatus.Active)
                 .AsTracking();
 
             var agreements = await activeAgreementsQuery.ToListAsync();
@@ -40,7 +41,7 @@ public class RiskBucketUpdateJob
             foreach (var agreement in agreements)
             {
                 var unpaidEmis = await _context.EMISchedules
-                    .Where(e => e.HPAgreementId == agreement.Id && e.Status != "Paid" && e.DueDate < today)
+                    .Where(e => e.HPAgreementId == agreement.Id && e.Status != EMIPaymentStatus.Paid && e.DueDate < today)
                     .ToListAsync();
 
                 decimal totalOverdue = unpaidEmis.Sum(e => e.TotalDue ?? 0);
@@ -48,7 +49,7 @@ public class RiskBucketUpdateJob
                     ? unpaidEmis.Max(e => (today - e.DueDate.GetValueOrDefault(today)).Days) 
                     : 0;
 
-                string riskBucket = DetermineRiskBucket(maxDaysOverdue);
+                RiskBucketEnum riskBucket = DetermineRiskBucket(maxDaysOverdue);
 
                 if (agreement.RecoveryBoard == null)
                 {
@@ -82,12 +83,12 @@ public class RiskBucketUpdateJob
         }
     }
 
-    private static string DetermineRiskBucket(int maxDaysOverdue)
+    private static RiskBucketEnum DetermineRiskBucket(int maxDaysOverdue)
     {
-        if (maxDaysOverdue == 0) return "Current"; // RiskBucketEnum.Current
-        if (maxDaysOverdue <= 30) return "Days1_30";
-        if (maxDaysOverdue <= 60) return "Days31_60";
-        if (maxDaysOverdue <= 90) return "Days61_90";
-        return "Days90Plus";
+        if (maxDaysOverdue == 0) return RiskBucketEnum.Current;
+        if (maxDaysOverdue <= 30) return RiskBucketEnum.Days1_30;
+        if (maxDaysOverdue <= 60) return RiskBucketEnum.Days31_60;
+        if (maxDaysOverdue <= 90) return RiskBucketEnum.Days61_90;
+        return RiskBucketEnum.Days90Plus;
     }
 }

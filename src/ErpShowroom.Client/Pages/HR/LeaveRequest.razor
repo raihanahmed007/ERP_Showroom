@@ -67,8 +67,8 @@
         await form!.Validate();
         if (form.IsValid)
         {
-            var response = await ApiClient.PostAsync("hr/leaves", leaveRequest);
-            if (response.IsSuccessStatusCode)
+            var success = await ApiClient.PostAsyncBool("hr/leaves", leaveRequest);
+            if (success)
             {
                 Snackbar.Add("Leave request submitted successfully", Severity.Success);
                 leaveRequest = new LeaveRequestDto { FromDate = DateTime.Today, ToDate = DateTime.Today };

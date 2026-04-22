@@ -12,7 +12,7 @@ using ErpShowroom.Domain.Common;
 namespace ErpShowroom.Application.fin.Commands;
 
 public record CreateHPAgreementCommand(long CustomerId, long ProductId, decimal DownPayment, int InstallmentCount, decimal InterestRate) : IRequest<long>;
-public class CreateHPAgreementHandler(IUnitOfWork uow) : IRequestHandler<CreateHPAgreementCommand, long>
+public class CreateHPAgreementHandler(ErpShowroom.Domain.Common.IUnitOfWork uow) : IRequestHandler<CreateHPAgreementCommand, long>
 {
     public async Task<long> Handle(CreateHPAgreementCommand request, CancellationToken ct)
     {
