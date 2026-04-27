@@ -1,0 +1,124 @@
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.PersonAdd)" Class="mr-3 mb-n1" />
+            @(IsEdit ? "Edit User" : "Create New User")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Username" @bind-Value="UserName"
+                                  Required="true" RequiredError="Username is required"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Email" @bind-Value="Email"
+                                  InputType="InputType.Email"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                @if (!IsEdit)
+                {
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Password" @bind-Value="Password"
+                                      InputType="InputType.Password"
+                                      Required="true" RequiredError="Password is required"
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                }
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Phone" @bind-Value="Phone"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="long?" Label="Employee ID" @bind-Value="EmployeeId"
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+                @if (IsEdit)
+                {
+                    <MudItem xs="12">
+                        <MudSwitch T="bool" @bind-Value="IsActive" Label="Active" Color="Color.Success" />
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit"
+                   Disabled="@(!_isValid || _saving)">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            @(IsEdit ? "Save Changes" : "Create User")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public long UserId { get; set; }
+    [Parameter] public string UserName { get; set; } = "";
+    [Parameter] public string Email { get; set; } = "";
+    [Parameter] public string Phone { get; set; } = "";
+    [Parameter] public long? EmployeeId { get; set; }
+    [Parameter] public bool IsActive { get; set; } = true;
+
+    private string Password { get; set; } = "";
+    private bool _isValid;
+    private bool _saving;
+    private MudForm _form = null!;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _saving = true;
+        try
+        {
+            bool success;
+            if (IsEdit)
+            {
+                success = await SystemService.UpdateUserAsync(UserId, new UpdateUserRequest
+                {
+                    UserName = UserName,
+                    Email = Email,
+                    Phone = Phone,
+                    EmployeeId = EmployeeId,
+                    IsActive = IsActive
+                });
+            }
+            else
+            {
+                success = await SystemService.CreateUserAsync(new CreateUserRequest
+                {
+                    UserName = UserName,
+                    Password = Password,
+                    Email = Email,
+                    Phone = Phone,
+                    EmployeeId = EmployeeId
+                });
+            }
+
+            if (success)
+            {
+                Snackbar.Add(IsEdit ? "User updated" : "User created", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(IsEdit ? "Failed to update user" : "Failed to create user (username may already exist)", Severity.Error);
+            }
+        }
+        finally { _saving = false; }
+    }
+}

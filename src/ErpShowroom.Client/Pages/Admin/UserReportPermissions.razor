@@ -1,0 +1,162 @@
+@page "/system/report-permissions/{UserId:long}"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mb-3"
+           OnClick="@(() => Nav.NavigateTo("/system/users"))">Back to Users</MudButton>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">User Report Permissions</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Manage which reports the user can view, export, and print: <b>@userName</b>
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenAddReportDialog" Disabled="@loading">Add Report Access</MudButton>
+</div>
+
+@if (loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!permissions.Any())
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-3">
+        No report permissions configured. Click "Add Report Access" to configure.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="@permissions" Hover="true" Dense="true" Striped="true" FixedHeader="true" Height="550px"
+              GroupBy="@_groupDef">
+        <HeaderContent>
+            <MudTh>Report Name</MudTh>
+            <MudTh>Report Code</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh Style="text-align:center">Can View</MudTh>
+            <MudTh Style="text-align:center">Can Export</MudTh>
+            <MudTh Style="text-align:center">Can Print</MudTh>
+            <MudTh Style="width: 80px; text-align:center">Remove</MudTh>
+        </HeaderContent>
+        <GroupHeaderTemplate>
+            <MudTh Class="mud-table-cell-custom-group" colspan="7">
+                <MudText Typo="Typo.subtitle1"><b>@context.GroupName: @context.Key</b></MudText>
+            </MudTh>
+        </GroupHeaderTemplate>
+        <RowTemplate>
+            <MudTd DataLabel="Report">@context.ReportNameText</MudTd>
+            <MudTd DataLabel="Code">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.ReportCode</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Type">@context.ReportTypeName</MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanView"
+                             ValueChanged="(v) => { context.CanView = v; SavePermission(context); }" Color="Color.Success" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanExport"
+                             ValueChanged="(v) => { context.CanExport = v; SavePermission(context); }" Color="Color.Primary" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanPrint"
+                             ValueChanged="(v) => { context.CanPrint = v; SavePermission(context); }" Color="Color.Info" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="() => DeletePermission(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter] public long UserId { get; set; }
+
+    private string userName = "";
+    private bool loading = true;
+    private List<UserReportPermissionDto> permissions = new();
+    private List<AvailableReportDto> availableReports = new();
+
+    private TableGroupDefinition<UserReportPermissionDto> _groupDef = new()
+    {
+        GroupName = "Module",
+        Indentation = false,
+        Expandable = true,
+        IsInitiallyExpanded = true,
+        Selector = (e) => e.ModuleName ?? "Other"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+
+        var userTask = SystemService.GetUserByIdAsync(UserId);
+        var permsTask = SystemService.GetUserReportPermissionsAsync(UserId);
+        var reportsTask = SystemService.GetAvailableReportsAsync();
+
+        await Task.WhenAll(userTask, permsTask, reportsTask);
+
+        userName = userTask.Result?.UserName ?? $"User #{UserId}";
+        permissions = permsTask.Result;
+        availableReports = reportsTask.Result;
+
+        loading = false;
+    }
+
+    private async void SavePermission(UserReportPermissionDto perm)
+    {
+        await SystemService.SaveUserReportPermissionAsync(new SaveUserReportPermissionRequest
+        {
+            UserId = perm.UserId,
+            ReportNameId = perm.ReportNameId,
+            CompanyId = perm.CompanyId,
+            CanView = perm.CanView,
+            CanExport = perm.CanExport,
+            CanPrint = perm.CanPrint
+        });
+    }
+
+    private async Task DeletePermission(UserReportPermissionDto perm)
+    {
+        var success = await SystemService.DeleteUserReportPermissionAsync(perm.Id);
+        if (success)
+        {
+            Snackbar.Add($"Removed report permission for '{perm.ReportNameText}'", Severity.Success);
+            permissions.Remove(perm);
+        }
+        else Snackbar.Add("Failed to remove", Severity.Error);
+    }
+
+    private async Task OpenAddReportDialog()
+    {
+        var existingReportIds = permissions.Select(p => p.ReportNameId).ToHashSet();
+        var newReports = availableReports.Where(r => !existingReportIds.Contains(r.Id)).ToList();
+
+        if (!newReports.Any())
+        {
+            Snackbar.Add("All reports already have permissions configured", Severity.Info);
+            return;
+        }
+
+        var parameters = new DialogParameters<AddReportPermissionDialog>
+        {
+            { x => x.AvailableReports, newReports },
+            { x => x.UserId, UserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AddReportPermissionDialog>("Add Report Permissions", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadData();
+    }
+}

@@ -46,6 +46,9 @@ public interface IApplicationDbContext
     DbSet<JournalEntry> JournalEntries { get; }
     DbSet<JournalLine> JournalLines { get; }
     DbSet<TrialBalance> TrialBalances { get; }
+    DbSet<BranchCashClosing> BranchCashClosings { get; }
+    DbSet<FixedAsset> FixedAssets { get; }
+    DbSet<DepreciationSchedule> DepreciationSchedules { get; }
 
     // fin
     DbSet<HPAgreement> HPAgreements { get; }

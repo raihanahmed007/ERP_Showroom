@@ -1,0 +1,144 @@
+@page "/accounting/fiscal-periods"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services.acc
+@using ErpShowroom.Application.acc.DTOs
+@using ErpShowroom.Domain.acc.Entities
+@inject IAccountingService AccService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IApiClient ApiClient
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h4">Fiscal Periods</MudText>
+    <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenPeriodDialog(null))">New Period</MudButton>
+</div>
+
+<MudTable Items="@periods" Hover="true" Striped="true" Loading="@isLoading">
+    <HeaderContent>
+        <MudTh>Period Name</MudTh>
+        <MudTh>Start Date</MudTh>
+        <MudTh>End Date</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh Style="width: 150px;">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.PeriodName</MudTd>
+        <MudTd>@context.StartDate?.ToString("dd-MMM-yyyy")</MudTd>
+        <MudTd>@context.EndDate?.ToString("dd-MMM-yyyy")</MudTd>
+        <MudTd>
+            @if (context.IsClosed ?? false)
+            {
+                <MudChip T="string" Color="MudBlazor.Color.Error" Size="Size.Small">Closed</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="MudBlazor.Color.Success" Size="Size.Small">Open</MudChip>
+            }
+        </MudTd>
+        <MudTd>
+            @if (!(context.IsClosed ?? false))
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="MudBlazor.Color.Primary" Size="Size.Small" OnClick="@(() => OpenPeriodDialog(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Lock" Color="MudBlazor.Color.Warning" Size="Size.Small" OnClick="@(() => ClosePeriod(context))" Title="Close Period" />
+            }
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="MudBlazor.Color.Error" Size="Size.Small" OnClick="@(() => DeletePeriod(context))" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+    <MudDialog @bind-Visible="isDialogOpen" Options="new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true }">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(currentPeriod.Id == 0 ? "New Period" : "Edit Period")</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudForm @ref="form">
+                <MudTextField Label="Period Name" @bind-Value="currentPeriod.PeriodName" Required="true" Placeholder="e.g. FY 2026-04" />
+                <MudDatePicker Label="Start Date" @bind-Date="currentPeriod.StartDate" Required="true" />
+                <MudDatePicker Label="End Date" @bind-Date="currentPeriod.EndDate" Required="true" />
+            </MudForm>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => isDialogOpen = false)">Cancel</MudButton>
+            <MudButton Color="MudBlazor.Color.Primary" OnClick="SavePeriod">Save</MudButton>
+        </DialogActions>
+    </MudDialog>
+
+@code {
+    List<FiscalPeriod> periods = new();
+    bool isLoading;
+    bool isDialogOpen;
+    FiscalPeriod currentPeriod = new();
+    MudForm form = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPeriods();
+    }
+
+    async Task LoadPeriods()
+    {
+        isLoading = true;
+        periods = await ApiClient.GetAsync<List<FiscalPeriod>>("api/FiscalPeriods") ?? new();
+        isLoading = false;
+    }
+
+    void OpenPeriodDialog(FiscalPeriod? model)
+    {
+        currentPeriod = model != null ? new FiscalPeriod { 
+            Id = model.Id, 
+            PeriodName = model.PeriodName, 
+            StartDate = model.StartDate, 
+            EndDate = model.EndDate, 
+            IsClosed = model.IsClosed 
+        } : new FiscalPeriod { StartDate = DateTime.Today, EndDate = DateTime.Today.AddMonths(1).AddDays(-1) };
+        isDialogOpen = true;
+    }
+
+    async Task SavePeriod()
+    {
+        await form.Validate();
+        if (!form.IsValid) return;
+
+        bool success;
+        if (currentPeriod.Id == 0)
+            success = await ApiClient.PostAsyncBool("api/FiscalPeriods", currentPeriod);
+        else
+            success = await ApiClient.PutAsync($"api/FiscalPeriods/{currentPeriod.Id}", currentPeriod);
+
+        if (success)
+        {
+            Snackbar.Add("Fiscal period saved", Severity.Success);
+            isDialogOpen = false;
+            await LoadPeriods();
+        }
+    }
+
+    async Task ClosePeriod(FiscalPeriod period)
+    {
+        var result = await DialogService.ShowMessageBox("Close Period", "Are you sure you want to close this fiscal period? This action is irreversible.", "Close", cancelText: "Cancel");
+        if (result == true)
+        {
+            var success = await ApiClient.PostAsyncBool($"api/Accounting/close-period?periodId={period.Id}", new { });
+            if (success)
+            {
+                Snackbar.Add("Period closed successfully", Severity.Success);
+                await LoadPeriods();
+            }
+        }
+    }
+
+    async Task DeletePeriod(FiscalPeriod period)
+    {
+        var result = await DialogService.ShowMessageBox("Delete Period", $"Delete {period.PeriodName}?", "Delete", cancelText: "Cancel");
+        if (result == true)
+        {
+            var success = await ApiClient.DeleteAsync($"api/FiscalPeriods/{period.Id}");
+            if (success)
+            {
+                Snackbar.Add("Period deleted", Severity.Success);
+                await LoadPeriods();
+            }
+        }
+    }
+}

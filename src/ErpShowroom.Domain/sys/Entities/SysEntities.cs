@@ -401,3 +401,16 @@ public class UserLoginLog : BaseEntity
     public int? SessionDuration { get; set; }
     public long? CompanyId { get; set; }
 }
+
+[Table("UserReportPermissions", Schema = "sys")]
+public class UserReportPermission : BaseEntity
+{
+    public long UserId { get; set; }
+    [ForeignKey("UserId")] public User User { get; set; } = null!;
+    public long ReportNameId { get; set; }
+    [ForeignKey("ReportNameId")] public ReportName ReportName { get; set; } = null!;
+    public long CompanyId { get; set; }
+    public bool CanView { get; set; }
+    public bool CanExport { get; set; }
+    public bool CanPrint { get; set; }
+}

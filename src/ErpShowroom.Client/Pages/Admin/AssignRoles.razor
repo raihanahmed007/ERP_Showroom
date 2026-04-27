@@ -1,0 +1,161 @@
+@page "/system/assign-roles/{UserId:long}"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mb-3"
+           OnClick="@(() => Nav.NavigateTo("/system/users"))">Back to Users</MudButton>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Assign Roles</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Managing roles for user: <b>@userName</b>
+        </MudText>
+    </div>
+</div>
+
+<MudGrid>
+    @* Left: Currently assigned roles *@
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-2 mb-n1" />
+                Assigned Roles
+            </MudText>
+
+            @if (loading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (!assignedRoles.Any())
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-3">
+                    No roles assigned to this user yet.
+                </MudAlert>
+            }
+            else
+            {
+                <MudList T="UserRoleAssignmentDto" Dense="true">
+                    @foreach (var role in assignedRoles)
+                    {
+                        <MudListItem T="UserRoleAssignmentDto">
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div>
+                                    <MudText Typo="Typo.body1"><b>@role.RoleName</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@role.RoleType</MudText>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Size="Size.Small"
+                                               OnClick="() => RemoveRole(role)" />
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* Right: Available roles to assign *@
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.AddCircle" Class="mr-2 mb-n1" />
+                Available Roles
+            </MudText>
+
+            @if (loading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (!unassignedRoles.Any())
+            {
+                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="my-3">
+                    All available roles have been assigned.
+                </MudAlert>
+            }
+            else
+            {
+                <MudList T="AvailableRoleDto" Dense="true">
+                    @foreach (var role in unassignedRoles)
+                    {
+                        <MudListItem T="AvailableRoleDto">
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div>
+                                    <MudText Typo="Typo.body1"><b>@role.RoleName</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@role.RoleType — @role.Description</MudText>
+                                </div>
+                                <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Add"
+                                           OnClick="() => AssignRole(role)">Assign</MudButton>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public long UserId { get; set; }
+
+    private string userName = "";
+    private bool loading = true;
+    private List<UserRoleAssignmentDto> assignedRoles = new();
+    private List<AvailableRoleDto> allRoles = new();
+    private List<AvailableRoleDto> unassignedRoles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+
+        var userTask = SystemService.GetUserByIdAsync(UserId);
+        var rolesTask = SystemService.GetUserRolesAsync(UserId);
+        var allRolesTask = SystemService.GetAvailableRolesAsync();
+
+        await Task.WhenAll(userTask, rolesTask, allRolesTask);
+
+        var user = userTask.Result;
+        userName = user?.UserName ?? $"User #{UserId}";
+        assignedRoles = rolesTask.Result;
+        allRoles = allRolesTask.Result;
+
+        // Compute unassigned
+        var assignedIds = assignedRoles.Select(r => r.RoleId).ToHashSet();
+        unassignedRoles = allRoles.Where(r => !assignedIds.Contains(r.Id)).ToList();
+
+        loading = false;
+    }
+
+    private async Task AssignRole(AvailableRoleDto role)
+    {
+        var success = await SystemService.AssignRoleAsync(UserId, role.Id);
+        if (success)
+        {
+            Snackbar.Add($"Role '{role.RoleName}' assigned", Severity.Success);
+            await LoadData();
+        }
+        else Snackbar.Add("Failed to assign role (may already be assigned)", Severity.Error);
+    }
+
+    private async Task RemoveRole(UserRoleAssignmentDto role)
+    {
+        var success = await SystemService.RemoveRoleAssignmentAsync(role.Id);
+        if (success)
+        {
+            Snackbar.Add($"Role '{role.RoleName}' removed", Severity.Success);
+            await LoadData();
+        }
+        else Snackbar.Add("Failed to remove role", Severity.Error);
+    }
+}

@@ -1,6 +1,7 @@
 // ErpShowroom.Client/Program.cs
 using Blazored.LocalStorage;
 using ErpShowroom.Client.Services;
+using ErpShowroom.Client.Services.acc;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
@@ -35,5 +36,7 @@ builder.Services.AddAuthorizationCore();
 
 // ApiClient — registered last because it depends on CustomAuthStateProvider
 builder.Services.AddScoped<IApiClient, ApiClient>();
+builder.Services.AddScoped<IAccountingService, AccountingService>();
+builder.Services.AddScoped<ISystemService, SystemService>();
 
 await builder.Build().RunAsync();

@@ -14,8 +14,14 @@
     </MudNavGroup>
 
     <MudNavGroup Title="Accounting" Icon="@Icons.Material.Filled.AccountBalance" Expanded="true">
-        <MudNavLink Href="/accounting/journal-entry" Icon="@Icons.Material.Filled.StickyNote2">Journal Entry</MudNavLink>
+        <MudNavLink Href="/accounting/coa" Icon="@Icons.Material.Filled.AccountTree">Chart of Accounts</MudNavLink>
+        <MudNavLink Href="/accounting/voucher-entry" Icon="@Icons.Material.Filled.StickyNote2">Voucher Entry</MudNavLink>
+        <MudNavLink Href="/accounting/vouchers" Icon="@Icons.Material.Filled.FormatListBulleted">Voucher List</MudNavLink>
+        <MudNavLink Href="/accounting/ledger" Icon="@Icons.Material.Filled.ListAlt">General Ledger</MudNavLink>
         <MudNavLink Href="/accounting/trial-balance" Icon="@Icons.Material.Filled.Balance">Trial Balance</MudNavLink>
+        <MudNavLink Href="/accounting/profit-loss" Icon="@Icons.Material.Filled.TrendingUp">Profit & Loss</MudNavLink>
+        <MudNavLink Href="/accounting/balance-sheet" Icon="@Icons.Material.Filled.AccountBalanceWallet">Balance Sheet</MudNavLink>
+        <MudNavLink Href="/accounting/fiscal-periods" Icon="@Icons.Material.Filled.CalendarToday">Fiscal Periods</MudNavLink>
     </MudNavGroup>
 
     <MudNavGroup Title="HR" Icon="@Icons.Material.Filled.People" Expanded="true">
@@ -29,5 +35,10 @@
 
     <MudNavGroup Title="Documents" Icon="@Icons.Material.Filled.FilePresent" Expanded="true">
         <MudNavLink Href="/documents/upload" Icon="@Icons.Material.Filled.UploadFile">Upload & OCR</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="System Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+        <MudNavLink Href="/system/users" Icon="@Icons.Material.Filled.People">User Management</MudNavLink>
+        <MudNavLink Href="/system/roles" Icon="@Icons.Material.Filled.Security">Role Management</MudNavLink>
     </MudNavGroup>
 </MudNavMenu>

@@ -44,10 +44,17 @@ public class JournalEntry : BaseEntity
     public DateTime? JournalDate { get; set; }
     public long? PeriodId { get; set; }
     public string? Narration { get; set; }
+    public VoucherStatus Status { get; set; } = VoucherStatus.Draft;
+    
     public bool? IsReversed { get; set; } = false;
     public long? ReversedFromJournalId { get; set; }
+    
     public long? ApprovedByUserId { get; set; }
     public DateTime? ApprovedAt { get; set; }
+    
+    public long? PostedByUserId { get; set; }
+    public DateTime? PostedAt { get; set; }
+
     public string? ReferenceNo { get; set; }
     public decimal? TotalDebit { get; set; }
     public decimal? TotalCredit { get; set; }
@@ -56,6 +63,17 @@ public class JournalEntry : BaseEntity
     public virtual FiscalPeriod? Period { get; set; }
 
     public virtual ICollection<JournalLine>? JournalLines { get; set; }
+
+    public void Post(long userId)
+    {
+        if (Status != VoucherStatus.Draft)
+            throw new ErpShowroom.Domain.Common.Exceptions.DomainException("Only draft vouchers can be posted.");
+        
+        ValidateDebitCredit();
+        Status = VoucherStatus.Posted;
+        PostedByUserId = userId;
+        PostedAt = DateTime.UtcNow;
+    }
 
     /// <summary>
     /// Validates that total debit equals total credit and updates totals. Raises JournalBalancedEvent.

@@ -56,6 +56,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<DatabaseBackupLog> DatabaseBackupLogs => Set<DatabaseBackupLog>();
     public DbSet<UserLoginLog> UserLoginLogs => Set<UserLoginLog>();
     public DbSet<SoftDeleteRegistry> SoftDeleteRegistries => Set<SoftDeleteRegistry>();
+    public DbSet<UserReportPermission> UserReportPermissions => Set<UserReportPermission>();
     
     // acc
     public DbSet<ChartOfAccount> ChartOfAccounts => Set<ChartOfAccount>();
