@@ -1,0 +1,57 @@
+@page "/accounting/profit-loss"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services.acc
+@using ErpShowroom.Application.acc.DTOs
+@inject IAccountingService AccService
+
+<MudText Typo="Typo.h4" GutterBottom="true">Profit & Loss Statement</MudText>
+
+<MudPaper Class="pa-6 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudDatePicker Label="From Date" @bind-Date="startDate" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudDatePicker Label="To Date" @bind-Date="endDate" />
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="LoadReport" FullWidth="true">Generate P&L</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (reportItems.Any())
+{
+    <MudPaper Class="pa-6">
+        <MudSimpleTable Style="overflow-x: auto;">
+            <thead>
+                <tr>
+                    <th>Account Name</th>
+                    <th style="text-align:right">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in reportItems)
+                {
+                    <tr style="@(item.IsHeader ? "font-weight: bold; background-color: #f5f5f5;" : "")">
+                        <td style="padding-left: @(item.Level * 20)px">@item.AccountName</td>
+                        <td style="text-align:right">@(item.AccountName.Contains("TOTAL") || item.IsHeader ? item.Amount.ToString("N2") : item.Amount.ToString("N2"))</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudPaper>
+}
+
+@code {
+    DateTime? startDate = new DateTime(DateTime.Today.Year, 1, 1);
+    DateTime? endDate = DateTime.Today;
+    List<FinancialReportDto> reportItems = new();
+
+    async Task LoadReport()
+    {
+        if (startDate == null || endDate == null) return;
+        reportItems = await AccService.GetProfitLossAsync(startDate.Value, endDate.Value);
+    }
+}

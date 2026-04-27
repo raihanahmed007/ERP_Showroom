@@ -74,7 +74,12 @@ builder.Host.UseSerilog();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMemoryCache();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<IEncryptionService, DataProtectionEncryptionService>();
 builder.Services.AddScoped<ErpShowroom.Application.fin.Workflows.WorkflowOrchestrator>();
@@ -180,7 +185,6 @@ app.UseCors("ErpCorsPolicy");
 
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
-app.MapStaticAssets();
 
 app.UseRouting();
 
@@ -205,7 +209,7 @@ using (var scope = app.Services.CreateScope())
         var services = scope.ServiceProvider;
         var dbContext = services.GetRequiredService<ErpShowroom.Infrastructure.Persistence.AppDbContext>();
         dbContext.Database.Migrate();
-        await ErpShowroom.Infrastructure.Data.DataSeeder.SeedAsync(dbContext);
+        await ErpShowroom.Infrastructure.Persistence.DatabaseSeeder.SeedAsync(dbContext);
         Log.Information("Database initialization successful");
     }
     catch (Exception ex)

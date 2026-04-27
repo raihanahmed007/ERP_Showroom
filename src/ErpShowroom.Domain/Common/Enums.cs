@@ -1,7 +1,8 @@
 namespace ErpShowroom.Domain.Common;
 
 public enum AccountTypeEnum { Asset, Liability, Equity, Income, Expense }
-public enum VoucherTypeEnum { JV, PV, RV, CV, BPV }
+public enum VoucherTypeEnum { JV, CPV, CRV, BPV, BRV, CV }
+public enum VoucherStatus { Draft, Posted, Approved, Reversed, Cancelled }
 public enum HPAgreementStatus { PendingApproval, Active, Closed, Defaulted, WrittenOff, Rejected }
 public enum EMIPaymentStatus { Due, Partial, Paid, Overdue, Legal }
 public enum PaymentMethodEnum { Cash, BankTransfer, MobileBanking, Cheque, Card }

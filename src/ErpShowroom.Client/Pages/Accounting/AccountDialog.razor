@@ -1,0 +1,130 @@
+@using MudBlazor
+@using ErpShowroom.Client.Services.acc
+@using ErpShowroom.Application.acc.DTOs
+@using ErpShowroom.Application.acc.Commands
+@using ErpShowroom.Domain.acc.Entities
+@using ErpShowroom.Domain.Common
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Account.Id == 0 ? "Add Account" : "Edit Account")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="form">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Account Code" @bind-Value="Account.AccountCode" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Account Name" @bind-Value="Account.AccountName" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="AccountTypeEnum?" Label="Account Type" @bind-Value="Account.AccountType" Required="true">
+                        @foreach (AccountTypeEnum type in Enum.GetValues(typeof(AccountTypeEnum)))
+                        {
+                            <MudSelectItem Value="@((AccountTypeEnum?)type)">@type</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSwitch T="bool" @bind-Value="isHeadProxy" Label="Is Head Account?" Color="MudBlazor.Color.Primary" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField Label="Opening Balance" @bind-Value="Account.OpeningBalance" Format="N2" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudAutocomplete T="ChartOfAccountDto" @bind-Value="parentAccount" 
+                        SearchFunc="@SearchAccounts" ToStringFunc="@(a => a != null ? $"{a.AccountCode} - {a.AccountName}" : "")"
+                        Label="Parent Head" Dense="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Notes" @bind-Value="Account.Notes" Lines="2" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="MudBlazor.Color.Primary" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public ChartOfAccount Account { get; set; } = new();
+    [Parameter] public List<ChartOfAccountDto> AllAccounts { get; set; } = new();
+    [Inject] IAccountingService AccService { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    MudForm form = default!;
+    ChartOfAccountDto? parentAccount;
+
+    protected override void OnInitialized()
+    {
+        if (Account.ParentAccountId != null)
+        {
+            parentAccount = AllAccounts.FirstOrDefault(a => a.Id == Account.ParentAccountId);
+        }
+    }
+
+    private async Task<IEnumerable<ChartOfAccountDto>> SearchAccounts(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value)) return AllAccounts.Where(a => a.IsHead);
+        return AllAccounts.Where(x => x.IsHead && (x.AccountName.Contains(value, StringComparison.OrdinalIgnoreCase) || x.AccountCode.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    bool isHeadProxy 
+    { 
+        get => Account.IsHead ?? false; 
+        set => Account.IsHead = value; 
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    async Task Submit()
+    {
+        await form.Validate();
+        if (!form.IsValid) return;
+
+        Account.ParentAccountId = parentAccount?.Id;
+
+        bool success;
+        if (Account.Id == 0)
+        {
+            var command = new CreateAccountCommand(
+                Account.AccountCode!, 
+                Account.AccountName!, 
+                Account.AccountType, 
+                Account.ParentAccountId, 
+                Account.IsHead ?? false, 
+                Account.OpeningBalance, 
+                Account.CurrencyCode, 
+                Account.Notes);
+            success = await AccService.CreateAccountAsync(command);
+        }
+        else
+        {
+            var command = new UpdateAccountCommand(
+                Account.Id,
+                Account.AccountCode!, 
+                Account.AccountName!, 
+                Account.AccountType, 
+                Account.ParentAccountId, 
+                Account.IsHead ?? false, 
+                Account.OpeningBalance, 
+                Account.CurrencyCode, 
+                Account.Notes);
+            success = await AccService.UpdateAccountAsync(command);
+        }
+
+        if (success)
+        {
+            Snackbar.Add("Account saved successfully", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else 
+        {
+            Snackbar.Add("Error saving account", Severity.Error);
+        }
+    }
+}

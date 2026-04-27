@@ -1,0 +1,180 @@
+@page "/accounting/voucher-entry"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services.acc
+@using ErpShowroom.Application.acc.DTOs
+@using ErpShowroom.Application.acc.Commands
+@using ErpShowroom.Domain.Common
+@inject IAccountingService AccService
+@inject ISnackbar Snackbar
+
+<div class="d-flex align-center gap-4 mb-6">
+    <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Color="MudBlazor.Color.Primary" Size="Size.Large" />
+    <div>
+        <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1e293b;">Voucher Entry</MudText>
+        <MudText Typo="Typo.body2" Color="MudBlazor.Color.Secondary">Record financial transactions into the general ledger</MudText>
+    </div>
+</div>
+
+<MudPaper Class="pa-8 voucher-card" Elevation="0">
+    <MudForm @ref="form">
+        <div class="voucher-header">
+            <MudGrid>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="VoucherTypeEnum" Label="Voucher Type" @bind-Value="command.VoucherType" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter">
+                        @foreach (VoucherTypeEnum type in Enum.GetValues(typeof(VoucherTypeEnum)))
+                        {
+                            <MudSelectItem Value="@type">@type</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudDatePicker Label="Voucher Date" @bind-Date="command.JournalDate" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Narration" @bind-Value="command.Narration" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Enter transaction description..." />
+                </MudItem>
+            </MudGrid>
+        </div>
+
+        <MudTable Items="@command.Lines" Hover="true" Dense="true" Elevation="0" Class="table-glass mt-4">
+            <HeaderContent>
+                <MudTh>Account</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh Style="text-align:right">Debit</MudTh>
+                <MudTh Style="text-align:right">Credit</MudTh>
+                <MudTh Style="width: 60px;"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Account">
+                    <MudAutocomplete T="ChartOfAccountDto" @bind-Value="context.Account" 
+                        SearchFunc="@SearchAccounts" ToStringFunc="@(a => a != null ? $"{a.AccountCode} - {a.AccountName}" : "")"
+                        Placeholder="Search Account..." Required="true" Dense="true" Margin="Margin.Dense" Variant="Variant.Text" />
+                </MudTd>
+                <MudTd DataLabel="Description">
+                    <MudTextField T="string" @bind-Value="context.Description" Dense="true" Margin="Margin.Dense" Placeholder="Line narration" Variant="Variant.Text" />
+                </MudTd>
+                <MudTd DataLabel="Debit" Style="text-align:right">
+                    <MudNumericField T="decimal" @bind-Value="context.DebitAmount" Min="0" Format="N2" HideSpinButtons="true" Dense="true" Margin="Margin.Dense" Variant="Variant.Text" Style="text-align:right" />
+                </MudTd>
+                <MudTd DataLabel="Credit" Style="text-align:right">
+                    <MudNumericField T="decimal" @bind-Value="context.CreditAmount" Min="0" Format="N2" HideSpinButtons="true" Dense="true" Margin="Margin.Dense" Variant="Variant.Text" Style="text-align:right" />
+                </MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="MudBlazor.Color.Error" Size="Size.Small" OnClick="@(() => RemoveLine(context))" Disabled="@(command.Lines.Count <= 2)" Class="action-btn" />
+                </MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTFootRow Class="total-row">
+                    <MudTd colspan="2"><MudText Align="Align.Right" Style="font-weight: 700;">TOTALS</MudText></MudTd>
+                    <MudTd Style="text-align:right"><MudText Color="@(IsBalanced ? MudBlazor.Color.Success : MudBlazor.Color.Error)" Style="font-weight: 800;">@TotalDebit.ToString("N2")</MudText></MudTd>
+                    <MudTd Style="text-align:right"><MudText Color="@(IsBalanced ? MudBlazor.Color.Success : MudBlazor.Color.Error)" Style="font-weight: 800;">@TotalCredit.ToString("N2")</MudText></MudTd>
+                    <MudTd></MudTd>
+                </MudTFootRow>
+            </FooterContent>
+        </MudTable>
+
+        <div class="d-flex align-center justify-space-between mt-8">
+            <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddLine" Color="MudBlazor.Color.Primary" Variant="Variant.Text" Style="text-transform: none; font-weight: 600;">Add Transaction Line</MudButton>
+            
+            <div class="d-flex align-center gap-6">
+                @if (TotalDebit > 0 || TotalCredit > 0)
+                {
+                    @if (IsBalanced)
+                    {
+                        <MudChip T="string" Icon="@Icons.Material.Filled.CheckCircle" Class="balanced-chip" Size="Size.Medium">Voucher Balanced</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Icon="@Icons.Material.Filled.Warning" Class="unbalanced-chip" Size="Size.Medium">
+                            Out of Balance: @Math.Abs(TotalDebit - TotalCredit).ToString("N2")
+                        </MudChip>
+                    }
+                }
+                
+                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="SubmitVoucher" 
+                           Disabled="@(!IsBalanced || isSubmitting)" 
+                           Style="min-width: 160px; height: 48px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                    @if (isSubmitting)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                        <span>Posting...</span>
+                    }
+                    else
+                    {
+                        <span>Post Voucher</span>
+                    }
+                </MudButton>
+            </div>
+        </div>
+    </MudForm>
+</MudPaper>
+
+@code {
+    MudForm form = default!;
+    bool isSubmitting;
+    VoucherEntryViewModel command = new();
+    List<ChartOfAccountDto> accounts = new();
+
+    decimal TotalDebit => command.Lines.Sum(l => l.DebitAmount);
+    decimal TotalCredit => command.Lines.Sum(l => l.CreditAmount);
+    bool IsBalanced => TotalDebit > 0 && TotalDebit == TotalCredit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        accounts = await AccService.GetAccountsAsync();
+    }
+
+    private async Task<IEnumerable<ChartOfAccountDto>> SearchAccounts(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value)) return accounts;
+        return accounts.Where(x => x.AccountName.Contains(value, StringComparison.InvariantCultureIgnoreCase) || x.AccountCode.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    void AddLine() => command.Lines.Add(new());
+    void RemoveLine(VoucherLineViewModel line)
+    {
+        if (command.Lines.Count > 2) command.Lines.Remove(line);
+    }
+
+    async Task SubmitVoucher()
+    {
+        if (!IsBalanced) return;
+        isSubmitting = true;
+        try
+        {
+            var createCommand = new CreateJournalEntryCommand(
+                command.VoucherType, 
+                command.JournalDate ?? DateTime.Today, 
+                command.Narration, 
+                command.Lines.Select(l => new JournalLineDto(l.Account?.Id ?? 0, l.DebitAmount, l.CreditAmount, l.Description)).ToList()
+            );
+
+            var id = await AccService.CreateJournalEntryAsync(createCommand);
+            if (id > 0)
+            {
+                Snackbar.Add($"Voucher posted successfully! ID: {id}", Severity.Success);
+                command = new();
+            }
+            else Snackbar.Add("Failed to post voucher", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
+        finally { isSubmitting = false; }
+    }
+
+    public class VoucherEntryViewModel
+    {
+        public VoucherTypeEnum VoucherType { get; set; } = VoucherTypeEnum.JV;
+        public DateTime? JournalDate { get; set; } = DateTime.Today;
+        public string Narration { get; set; } = "";
+        public List<VoucherLineViewModel> Lines { get; set; } = new() { new(), new() };
+    }
+
+    public class VoucherLineViewModel
+    {
+        public ChartOfAccountDto? Account { get; set; }
+        public string Description { get; set; } = "";
+        public decimal DebitAmount { get; set; }
+        public decimal CreditAmount { get; set; }
+    }
+}

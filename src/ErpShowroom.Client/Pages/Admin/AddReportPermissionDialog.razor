@@ -1,0 +1,94 @@
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Class="mr-3 mb-n1" />
+            Add Report Permissions
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="search" Placeholder="Filter reports..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Class="mb-3" />
+
+        <div style="max-height: 400px; overflow-y: auto;">
+            @foreach (var group in filteredReports.GroupBy(r => r.ModuleName ?? "Other").OrderBy(g => g.Key))
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1"><b>@group.Key</b></MudText>
+                @foreach (var report in group)
+                {
+                    <div class="d-flex align-center justify-space-between py-1 px-2" style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                        <MudCheckBox T="bool" Value="@selectedIds.Contains(report.Id)"
+                                     ValueChanged="(v) => Toggle(report.Id, v)"
+                                     Label="@report.Name" Dense="true" />
+                        <div class="d-flex gap-2">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@report.ReportCode</MudChip>
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@report.ReportTypeName</MudChip>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit"
+                   Disabled="@(!selectedIds.Any() || _saving)">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Add @selectedIds.Count Report(s)
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public List<AvailableReportDto> AvailableReports { get; set; } = new();
+    [Parameter] public long UserId { get; set; }
+
+    private string search = "";
+    private HashSet<long> selectedIds = new();
+    private bool _saving;
+
+    private IEnumerable<AvailableReportDto> filteredReports => string.IsNullOrWhiteSpace(search)
+        ? AvailableReports
+        : AvailableReports.Where(r =>
+            (r.Name?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (r.ModuleName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (r.ReportCode?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    private void Toggle(long id, bool selected)
+    {
+        if (selected) selectedIds.Add(id);
+        else selectedIds.Remove(id);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        _saving = true;
+        try
+        {
+            int count = 0;
+            foreach (var id in selectedIds)
+            {
+                var success = await SystemService.SaveUserReportPermissionAsync(new SaveUserReportPermissionRequest
+                {
+                    UserId = UserId,
+                    ReportNameId = id,
+                    CompanyId = 0,
+                    CanView = true,
+                    CanExport = true,
+                    CanPrint = true
+                });
+                if (success) count++;
+            }
+            Snackbar.Add($"Added {count} report permission(s)", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally { _saving = false; }
+    }
+}

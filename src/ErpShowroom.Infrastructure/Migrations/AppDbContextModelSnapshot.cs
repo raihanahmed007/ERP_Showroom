@@ -518,6 +518,12 @@ namespace ErpShowroom.Infrastructure.Migrations
                     b.Property<long?>("PeriodId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime?>("PostedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("PostedByUserId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("ReferenceNo")
                         .HasColumnType("nvarchar(max)");
 
@@ -534,6 +540,9 @@ namespace ErpShowroom.Infrastructure.Migrations
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<string>("TagsJson")
                         .HasColumnType("nvarchar(max)");
@@ -7459,6 +7468,85 @@ namespace ErpShowroom.Infrastructure.Migrations
                     b.ToTable("UserPageAccess", "erp_sys");
                 });
 
+            modelBuilder.Entity("ErpShowroom.Domain.sys.Entities.UserReportPermission", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("CanExport")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanPrint")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanView")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("CompanyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CreatedFromIp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExtraPropertiesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("ReportNameId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("RowUid")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("TagsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UpdatedFromIp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReportNameId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserReportPermission", "erp_sys");
+                });
+
             modelBuilder.Entity("ErpShowroom.Domain.sys.Entities.UserRole", b =>
                 {
                     b.Property<long>("Id")
@@ -8880,6 +8968,25 @@ namespace ErpShowroom.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Page");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ErpShowroom.Domain.sys.Entities.UserReportPermission", b =>
+                {
+                    b.HasOne("ErpShowroom.Domain.sys.Entities.ReportName", "ReportName")
+                        .WithMany()
+                        .HasForeignKey("ReportNameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ErpShowroom.Domain.sys.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReportName");
 
                     b.Navigation("User");
                 });

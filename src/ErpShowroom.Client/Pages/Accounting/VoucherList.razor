@@ -1,0 +1,144 @@
+@page "/accounting/vouchers"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services.acc
+@using ErpShowroom.Application.acc.DTOs
+@using ErpShowroom.Domain.Common
+@inject IAccountingService AccService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IApiClient ApiClient
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h4">Voucher List</MudText>
+    <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Filled.Add" href="/accounting/voucher-entry">New Voucher</MudButton>
+</div>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="3">
+            <MudSelect T="VoucherTypeEnum?" Label="Voucher Type" @bind-Value="filterType" Clearable="true">
+                @foreach (VoucherTypeEnum type in Enum.GetValues(typeof(VoucherTypeEnum)))
+                {
+                    <MudSelectItem Value="@((VoucherTypeEnum?)type)">@type</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudTextField T="string" Label="Voucher No" @bind-Value="filterNo" Clearable="true" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudDateRangePicker Label="Date Range" @bind-DateRange="dateRange" />
+        </MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Info" FullWidth="true" OnClick="LoadVouchers">Filter</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudTable Items="@vouchers" Hover="true" Dense="true" Striped="true" Loading="@isLoading">
+    <HeaderContent>
+        <MudTh>Date</MudTh>
+        <MudTh>Voucher No</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Narration</MudTh>
+        <MudTh Style="text-align:right">Amount</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh Style="width: 140px;">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.JournalDate.ToString("dd-MMM-yyyy")</MudTd>
+        <MudTd>@context.VoucherNo</MudTd>
+        <MudTd>@context.VoucherType</MudTd>
+        <MudTd>@context.Narration</MudTd>
+        <MudTd Style="text-align:right">@context.TotalDebit.ToString("N2")</MudTd>
+        <MudTd>
+            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Text">@context.Status</MudChip>
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="MudBlazor.Color.Info" OnClick="@(() => ViewVoucher(context))" />
+            @if (context.Status == VoucherStatus.Draft)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="MudBlazor.Color.Success" OnClick="@(() => ApproveVoucher(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="MudBlazor.Color.Error" OnClick="@(() => DeleteVoucher(context))" />
+            }
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    List<JournalEntryDto> vouchers = new();
+    bool isLoading;
+    VoucherTypeEnum? filterType;
+    string? filterNo;
+    DateRange dateRange = new DateRange(DateTime.Today.AddMonths(-1), DateTime.Today);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVouchers();
+    }
+
+    async Task LoadVouchers()
+    {
+        isLoading = true;
+        // Using direct API client for simple listing as per CrudControllerBase pattern
+        var list = await ApiClient.GetAsync<List<JournalEntryDto>>("api/JournalEntries") ?? new();
+        
+        vouchers = list.Where(v => 
+            (!filterType.HasValue || v.VoucherType == filterType) &&
+            (string.IsNullOrEmpty(filterNo) || v.VoucherNo.Contains(filterNo, StringComparison.OrdinalIgnoreCase)) &&
+            (v.JournalDate >= dateRange.Start && v.JournalDate <= dateRange.End)
+        ).OrderByDescending(v => v.JournalDate).ToList();
+        
+        isLoading = false;
+    }
+
+    void ViewVoucher(JournalEntryDto voucher)
+    {
+        Snackbar.Add($"Viewing {voucher.VoucherNo}", Severity.Info);
+    }
+
+    async Task ApproveVoucher(JournalEntryDto voucher)
+    {
+        var result = await DialogService.ShowMessageBox("Approve Voucher", $"Confirm approval for {voucher.VoucherNo}?", "Approve", cancelText: "Cancel");
+        if (result == true)
+        {
+            // Note: In a real app, we would get the current user ID from AuthState
+            var success = await ApiClient.PostAsync<bool>($"api/Accounting/approve?journalId={voucher.Id}", null);
+            if (success)
+            {
+                Snackbar.Add("Voucher approved and posted", Severity.Success);
+                await LoadVouchers();
+            }
+            else Snackbar.Add("Failed to approve voucher", Severity.Error);
+        }
+    }
+
+    async Task DeleteVoucher(JournalEntryDto voucher)
+    {
+        var result = await DialogService.ShowMessageBox("Delete Voucher", $"Are you sure you want to delete {voucher.VoucherNo}?", "Delete", cancelText: "Cancel");
+        if (result == true)
+        {
+            var success = await ApiClient.DeleteAsync($"api/JournalEntries/{voucher.Id}");
+            if (success)
+            {
+                Snackbar.Add("Voucher deleted", Severity.Success);
+                await LoadVouchers();
+            }
+            else Snackbar.Add("Failed to delete voucher", Severity.Error);
+        }
+    }
+
+    MudBlazor.Color GetStatusColor(VoucherStatus status) => status switch
+    {
+        VoucherStatus.Draft => MudBlazor.Color.Default,
+        VoucherStatus.Posted => MudBlazor.Color.Info,
+        VoucherStatus.Approved => MudBlazor.Color.Success,
+        VoucherStatus.Reversed => MudBlazor.Color.Warning,
+        VoucherStatus.Cancelled => MudBlazor.Color.Error,
+        _ => MudBlazor.Color.Default
+    };
+}

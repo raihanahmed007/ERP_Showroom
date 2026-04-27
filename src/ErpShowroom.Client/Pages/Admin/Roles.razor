@@ -1,0 +1,147 @@
+@page "/system/roles"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Role Management</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Create and manage roles with page-level permissions</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AddModerator"
+               OnClick="OpenCreateDialog">Add New Role</MudButton>
+</div>
+
+<MudTable Items="@roles" Hover="true" Dense="true" Striped="true" Loading="@loading"
+          Filter="new Func<RoleDto, bool>(FilterFunc)" FixedHeader="true" Height="650px">
+    <ToolBarContent>
+        <MudTextField @bind-Value="searchString" Placeholder="Search roles..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" />
+        <MudSpacer />
+        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">@roles.Count Roles</MudChip>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Role Name</MudTh>
+        <MudTh>Role Code</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh Style="text-align:center">Status</MudTh>
+        <MudTh Style="width: 180px; text-align:center">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Role Name">
+            <MudText Typo="Typo.body2"><b>@context.RoleName</b></MudText>
+        </MudTd>
+        <MudTd DataLabel="Role Code">
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.RoleCode</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Type">
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetRoleTypeColor(context.RoleType)">@context.RoleType</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Description">@context.Description</MudTd>
+        <MudTd Style="text-align:center">
+            @if (context.IsActive == true)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Active</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">Inactive</MudChip>
+            }
+        </MudTd>
+        <MudTd Style="text-align:center">
+            <MudTooltip Text="Edit Role">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context))" />
+            </MudTooltip>
+            <MudTooltip Text="Manage Page Permissions">
+                <MudIconButton Icon="@Icons.Material.Filled.Shield" Color="Color.Info" Size="Size.Small"
+                               OnClick="@(() => Nav.NavigateTo($"/system/role-permissions/{context.Id}"))" />
+            </MudTooltip>
+            <MudTooltip Text="Delete Role">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="@(() => DeleteRole(context))" />
+            </MudTooltip>
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private List<RoleDto> roles = new();
+    private string searchString = "";
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoles();
+    }
+
+    private async Task LoadRoles()
+    {
+        loading = true;
+        roles = await SystemService.GetRolesAsync();
+        loading = false;
+    }
+
+    private bool FilterFunc(RoleDto role)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (role.RoleName.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (role.RoleCode.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private Color GetRoleTypeColor(string? type) => type switch
+    {
+        "SystemAdmin" => Color.Error,
+        "CompanyAdmin" => Color.Warning,
+        "User" => Color.Info,
+        "ReadOnly" => Color.Default,
+        _ => Color.Default
+    };
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<RoleDialog> { { x => x.IsEdit, false } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<RoleDialog>("Create Role", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadRoles();
+    }
+
+    private async Task OpenEditDialog(RoleDto role)
+    {
+        var parameters = new DialogParameters<RoleDialog>
+        {
+            { x => x.IsEdit, true },
+            { x => x.RoleId, role.Id },
+            { x => x.RoleName, role.RoleName },
+            { x => x.RoleCode, role.RoleCode },
+            { x => x.RoleType, role.RoleType ?? "User" },
+            { x => x.Description, role.Description ?? "" }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<RoleDialog>("Edit Role", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadRoles();
+    }
+
+    private async Task DeleteRole(RoleDto role)
+    {
+        var confirm = await DialogService.ShowMessageBox("Delete Role",
+            $"Are you sure you want to delete role '{role.RoleName}'?", "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            var success = await SystemService.DeleteRoleAsync(role.Id);
+            Snackbar.Add(success ? "Role deleted" : "Failed to delete role", success ? Severity.Success : Severity.Error);
+            if (success) await LoadRoles();
+        }
+    }
+}

@@ -1,0 +1,108 @@
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.AddModerator)" Class="mr-3 mb-n1" />
+            @(IsEdit ? "Edit Role" : "Create New Role")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Role Name" @bind-Value="RoleName"
+                                  Required="true" RequiredError="Role name is required"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Role Code" @bind-Value="RoleCode"
+                                  Required="true" RequiredError="Role code is required"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="string" Label="Role Type" @bind-Value="RoleType"
+                               Variant="Variant.Outlined" Required="true">
+                        <MudSelectItem Value="@("SystemAdmin")">System Admin</MudSelectItem>
+                        <MudSelectItem Value="@("CompanyAdmin")">Company Admin</MudSelectItem>
+                        <MudSelectItem Value="@("User")">User</MudSelectItem>
+                        <MudSelectItem Value="@("ReadOnly")">Read Only</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Description" @bind-Value="Description"
+                                  Lines="3" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit"
+                   Disabled="@(!_isValid || _saving)">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            @(IsEdit ? "Save Changes" : "Create Role")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public long RoleId { get; set; }
+    [Parameter] public string RoleName { get; set; } = "";
+    [Parameter] public string RoleCode { get; set; } = "";
+    [Parameter] public string RoleType { get; set; } = "User";
+    [Parameter] public string Description { get; set; } = "";
+
+    private bool _isValid;
+    private bool _saving;
+    private MudForm _form = null!;
+
+    private int GetRoleTypeInt() => RoleType switch
+    {
+        "SystemAdmin" => 0,
+        "CompanyAdmin" => 1,
+        "User" => 2,
+        "ReadOnly" => 3,
+        _ => 2
+    };
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        _saving = true;
+        try
+        {
+            var request = new RoleCreateRequest
+            {
+                RoleName = RoleName,
+                RoleCode = RoleCode,
+                RoleType = GetRoleTypeInt(),
+                Description = Description
+            };
+
+            bool success;
+            if (IsEdit)
+                success = await SystemService.UpdateRoleAsync(RoleId, request);
+            else
+                success = await SystemService.CreateRoleAsync(request);
+
+            if (success)
+            {
+                Snackbar.Add(IsEdit ? "Role updated" : "Role created", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else Snackbar.Add(IsEdit ? "Failed to update role" : "Failed to create role", Severity.Error);
+        }
+        finally { _saving = false; }
+    }
+}

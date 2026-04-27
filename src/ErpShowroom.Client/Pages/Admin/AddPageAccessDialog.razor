@@ -1,0 +1,101 @@
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Class="mr-3 mb-n1" />
+            Add Page Access Override
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+            Select pages to add access overrides. By default, all permissions will be granted. You can toggle them on the main page.
+        </MudText>
+
+        <MudTextField @bind-Value="search" Placeholder="Filter pages..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Class="mb-3" />
+
+        <div style="max-height: 400px; overflow-y: auto;">
+            @foreach (var group in filteredPages.GroupBy(p => p.ModuleName ?? "Other").OrderBy(g => g.Key))
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1"><b>@group.Key</b></MudText>
+                @foreach (var pg in group)
+                {
+                    <div class="d-flex align-center justify-space-between py-1 px-2" style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                        <div>
+                            <MudCheckBox T="bool" Value="@selectedPageIds.Contains(pg.Id)"
+                                         ValueChanged="@((v) => TogglePage(pg.Id, v))"
+                                         Label="@pg.PageName" Dense="true" />
+                        </div>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@pg.RouteUrl</MudChip>
+                    </div>
+                }
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit"
+                   Disabled="@(!selectedPageIds.Any() || _saving)">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Add @selectedPageIds.Count Page(s)
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public List<AvailablePageDto> AvailablePages { get; set; } = new();
+    [Parameter] public long UserId { get; set; }
+
+    private string search = "";
+    private HashSet<long> selectedPageIds = new();
+    private bool _saving;
+
+    private IEnumerable<AvailablePageDto> filteredPages => string.IsNullOrWhiteSpace(search)
+        ? AvailablePages
+        : AvailablePages.Where(p =>
+            (p.PageName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.ModuleName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.RouteUrl?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    private void TogglePage(long pageId, bool selected)
+    {
+        if (selected) selectedPageIds.Add(pageId);
+        else selectedPageIds.Remove(pageId);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        _saving = true;
+        try
+        {
+            int successCount = 0;
+            foreach (var pageId in selectedPageIds)
+            {
+                var success = await SystemService.SaveUserPageAccessAsync(new SaveUserPageAccessRequest
+                {
+                    UserId = UserId,
+                    PageId = pageId,
+                    CompanyId = 0,
+                    CanView = true,
+                    CanCreate = true,
+                    CanEdit = true,
+                    CanDelete = false,
+                    CanApprove = false,
+                    CanExport = true,
+                    OverridesRole = true
+                });
+                if (success) successCount++;
+            }
+            Snackbar.Add($"Added {successCount} page access override(s)", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        finally { _saving = false; }
+    }
+}

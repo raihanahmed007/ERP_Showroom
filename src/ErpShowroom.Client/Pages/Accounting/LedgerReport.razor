@@ -1,0 +1,74 @@
+@page "/accounting/ledger"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services.acc
+@using ErpShowroom.Application.acc.DTOs
+@inject IAccountingService AccService
+
+<MudText Typo="Typo.h4" GutterBottom="true">General Ledger</MudText>
+
+<MudPaper Class="pa-6 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudAutocomplete T="ChartOfAccountDto" @bind-Value="selectedAccount" 
+                SearchFunc="@SearchAccounts" ToStringFunc="@(a => a != null ? $"{a.AccountCode} - {a.AccountName}" : "")"
+                Label="Select Account" Required="true" Dense="true" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker Label="From Date" @bind-Date="startDate" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker Label="To Date" @bind-Date="endDate" />
+        </MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="LoadLedger" FullWidth="true">View Ledger</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (ledgerEntries.Any())
+{
+    <MudTable Items="@ledgerEntries" Hover="true" Dense="true" Striped="true" FixedHeader="true" Height="600px">
+        <HeaderContent>
+            <MudTh>Date</MudTh>
+            <MudTh>Voucher No</MudTh>
+            <MudTh>Narration</MudTh>
+            <MudTh Style="text-align:right">Debit</MudTh>
+            <MudTh Style="text-align:right">Credit</MudTh>
+            <MudTh Style="text-align:right">Balance</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Date.ToShortDateString()</MudTd>
+            <MudTd>@context.VoucherNo</MudTd>
+            <MudTd>@context.Narration</MudTd>
+            <MudTd Style="text-align:right">@(context.Debit > 0 ? context.Debit.ToString("N2") : "—")</MudTd>
+            <MudTd Style="text-align:right">@(context.Credit > 0 ? context.Credit.ToString("N2") : "—")</MudTd>
+            <MudTd Style="text-align:right">@context.Balance.ToString("N2")</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    ChartOfAccountDto? selectedAccount;
+    DateTime? startDate = DateTime.Today.AddMonths(-1);
+    DateTime? endDate = DateTime.Today;
+    List<LedgerEntryDto> ledgerEntries = new();
+    List<ChartOfAccountDto> accounts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        accounts = await AccService.GetAccountsAsync();
+    }
+
+    private async Task<IEnumerable<ChartOfAccountDto>> SearchAccounts(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value)) return accounts.Where(a => !a.IsHead);
+        return accounts.Where(x => !x.IsHead && (x.AccountName.Contains(value, StringComparison.InvariantCultureIgnoreCase) || x.AccountCode.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+    }
+
+    async Task LoadLedger()
+    {
+        if (selectedAccount == null || startDate == null || endDate == null) return;
+        ledgerEntries = await AccService.GetLedgerAsync(selectedAccount.Id, startDate.Value, endDate.Value);
+    }
+}

@@ -33,11 +33,9 @@
     </RowTemplate>
 </MudTable>
 
-@if (selectedEmi != null)
-{
-    <MudDialog IsVisible="true" Options="dialogOptions">
+    <MudDialog @bind-Visible="isDialogOpen" Options="dialogOptions">
         <DialogContent>
-            <MudText Typo="Typo.h6">Collect Payment - @selectedEmi.CustomerName</MudText>
+            <MudText Typo="Typo.h6">Collect Payment - @selectedEmi?.CustomerName</MudText>
             <MudNumericField T="decimal" Label="Amount" @bind-Value="payment.Amount" Required="true" Class="mt-4" />
             <MudSelect T="string" Label="Payment Method" @bind-Value="payment.PaymentMethod" Required="true" Class="mt-4">
                 <MudSelectItem Value="@("Cash")">Cash</MudSelectItem>
@@ -51,12 +49,12 @@
             <MudButton Color="MudBlazor.Color.Primary" OnClick="SubmitPayment">Submit</MudButton>
         </DialogActions>
     </MudDialog>
-}
 
 @code {
     List<EmiDto> overdueEmis = new();
     bool isLoading = true;
     EmiDto? selectedEmi;
+    bool isDialogOpen;
     PaymentDto payment = new();
     DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
     string? currentUserId;
@@ -82,11 +80,13 @@
     {
         selectedEmi = emi;
         payment = new PaymentDto { EmiId = emi.Id, Amount = emi.TotalDue };
+        isDialogOpen = true;
     }
 
     void CloseDialog()
     {
         selectedEmi = null;
+        isDialogOpen = false;
     }
 
     async Task SubmitPayment()

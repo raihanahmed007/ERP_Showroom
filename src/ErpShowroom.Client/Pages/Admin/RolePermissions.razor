@@ -1,0 +1,213 @@
+@page "/system/role-permissions/{RoleId:long}"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mb-3"
+           OnClick="@(() => Nav.NavigateTo("/system/roles"))">Back to Roles</MudButton>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">Role Page Permissions</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Configure page-level permissions for role: <b>@roleName</b>
+        </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+            All users with this role will inherit these page permissions.
+        </MudText>
+    </div>
+    <div class="d-flex gap-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddPageDialog" Disabled="@loading">Add Pages</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="SaveAll" Disabled="@(loading || _saving)">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            Save All
+        </MudButton>
+    </div>
+</div>
+
+@if (loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!permissions.Any())
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-3">
+        No page permissions configured for this role. Click "Add Pages" to configure access.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="@permissions" Hover="true" Dense="true" Striped="true" FixedHeader="true" Height="550px"
+              GroupBy="@_groupDef">
+        <HeaderContent>
+            <MudTh>Page</MudTh>
+            <MudTh>Route</MudTh>
+            <MudTh Style="text-align:center">View</MudTh>
+            <MudTh Style="text-align:center">Create</MudTh>
+            <MudTh Style="text-align:center">Edit</MudTh>
+            <MudTh Style="text-align:center">Delete</MudTh>
+            <MudTh Style="text-align:center">Approve</MudTh>
+            <MudTh Style="text-align:center">Export</MudTh>
+            <MudTh Style="width: 80px; text-align:center">Remove</MudTh>
+        </HeaderContent>
+        <GroupHeaderTemplate>
+            <MudTh Class="mud-table-cell-custom-group" colspan="9">
+                <MudText Typo="Typo.subtitle1"><b>@context.GroupName: @context.Key</b></MudText>
+            </MudTh>
+        </GroupHeaderTemplate>
+        <RowTemplate>
+            <MudTd DataLabel="Page">@context.PageName</MudTd>
+            <MudTd DataLabel="Route">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.PageRoute</MudChip>
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" @bind-Value="context.CanView" Color="Color.Success" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" @bind-Value="context.CanCreate" Color="Color.Primary" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" @bind-Value="context.CanEdit" Color="Color.Info" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" @bind-Value="context.CanDelete" Color="Color.Error" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" @bind-Value="context.CanApprove" Color="Color.Warning" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" @bind-Value="context.CanExport" Color="Color.Tertiary" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="() => RemovePermission(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter] public long RoleId { get; set; }
+
+    private string roleName = "";
+    private bool loading = true;
+    private bool _saving;
+    private List<PagePermissionDto> permissions = new();
+    private List<AvailablePageDto> availablePages = new();
+
+    private TableGroupDefinition<PagePermissionDto> _groupDef = new()
+    {
+        GroupName = "Module",
+        Indentation = false,
+        Expandable = true,
+        IsInitiallyExpanded = true,
+        Selector = (e) => e.ModuleName ?? "Other"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+
+        var rolesTask = SystemService.GetRolesAsync();
+        var permsTask = SystemService.GetRolePagePermissionsAsync(RoleId);
+        var pagesTask = SystemService.GetAvailablePagesAsync();
+
+        await Task.WhenAll(rolesTask, permsTask, pagesTask);
+
+        var role = rolesTask.Result.FirstOrDefault(r => r.Id == RoleId);
+        roleName = role?.RoleName ?? $"Role #{RoleId}";
+        permissions = permsTask.Result;
+        availablePages = pagesTask.Result;
+
+        loading = false;
+    }
+
+    private void RemovePermission(PagePermissionDto perm)
+    {
+        permissions.Remove(perm);
+    }
+
+    private async Task SaveAll()
+    {
+        _saving = true;
+        try
+        {
+            var requests = permissions.Select(p => new SavePagePermissionRequest
+            {
+                RoleId = RoleId,
+                PageId = p.PageId,
+                CompanyId = p.CompanyId,
+                CanView = p.CanView,
+                CanCreate = p.CanCreate,
+                CanEdit = p.CanEdit,
+                CanDelete = p.CanDelete,
+                CanApprove = p.CanApprove,
+                CanExport = p.CanExport
+            }).ToList();
+
+            var success = await SystemService.BulkSaveRolePagePermissionsAsync(RoleId, requests);
+            Snackbar.Add(success ? "All permissions saved" : "Failed to save", success ? Severity.Success : Severity.Error);
+            if (success) await LoadData();
+        }
+        finally { _saving = false; }
+    }
+
+    private async Task OpenAddPageDialog()
+    {
+        var existingPageIds = permissions.Select(p => p.PageId).ToHashSet();
+        var newPages = availablePages.Where(p => !existingPageIds.Contains(p.Id)).ToList();
+
+        if (!newPages.Any())
+        {
+            Snackbar.Add("All pages already have permissions configured", Severity.Info);
+            return;
+        }
+
+        var parameters = new DialogParameters<AddRolePageDialog>
+        {
+            { x => x.AvailablePages, newPages }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AddRolePageDialog>("Add Pages to Role", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            var selectedIds = result.Data as HashSet<long>;
+            if (selectedIds != null)
+            {
+                foreach (var id in selectedIds)
+                {
+                    var page = availablePages.First(p => p.Id == id);
+                    permissions.Add(new PagePermissionDto
+                    {
+                        RoleId = RoleId,
+                        PageId = id,
+                        PageName = page.PageName,
+                        PageRoute = page.RouteUrl,
+                        ModuleName = page.ModuleName,
+                        FeatureName = page.FeatureName,
+                        CanView = true,
+                        CanCreate = false,
+                        CanEdit = false,
+                        CanDelete = false,
+                        CanApprove = false,
+                        CanExport = false
+                    });
+                }
+                StateHasChanged();
+            }
+        }
+    }
+}

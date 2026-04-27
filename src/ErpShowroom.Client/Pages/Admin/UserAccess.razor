@@ -1,0 +1,182 @@
+@page "/system/user-access/{UserId:long}"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mb-3"
+           OnClick="@(() => Nav.NavigateTo("/system/users"))">Back to Users</MudButton>
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">User Page Access</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Fine-grained page access overrides for: <b>@userName</b>
+        </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Warning" Class="mt-1">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+            These overrides grant extra page permissions beyond the user's assigned roles.
+        </MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenAddPageDialog" Disabled="@loading">Add Page Access</MudButton>
+</div>
+
+@if (loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!accessList.Any())
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-3">
+        No page access overrides configured for this user. Click "Add Page Access" to grant extra permissions.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="@accessList" Hover="true" Dense="true" Striped="true" FixedHeader="true" Height="550px"
+              GroupBy="@_groupDef">
+        <HeaderContent>
+            <MudTh>Page</MudTh>
+            <MudTh>Route</MudTh>
+            <MudTh Style="text-align:center">View</MudTh>
+            <MudTh Style="text-align:center">Create</MudTh>
+            <MudTh Style="text-align:center">Edit</MudTh>
+            <MudTh Style="text-align:center">Delete</MudTh>
+            <MudTh Style="text-align:center">Approve</MudTh>
+            <MudTh Style="text-align:center">Export</MudTh>
+            <MudTh Style="text-align:center">Override</MudTh>
+            <MudTh Style="width: 80px; text-align:center">Actions</MudTh>
+        </HeaderContent>
+        <GroupHeaderTemplate>
+            <MudTh Class="mud-table-cell-custom-group" colspan="10">
+                <MudText Typo="Typo.subtitle1"><b>@context.GroupName: @context.Key</b></MudText>
+            </MudTh>
+        </GroupHeaderTemplate>
+        <RowTemplate>
+            <MudTd DataLabel="Page">@context.PageName</MudTd>
+            <MudTd DataLabel="Route">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.PageRoute</MudChip>
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanView" ValueChanged="(v) => { context.CanView = v; SaveAccess(context); }" Color="Color.Success" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanCreate" ValueChanged="(v) => { context.CanCreate = v; SaveAccess(context); }" Color="Color.Primary" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanEdit" ValueChanged="(v) => { context.CanEdit = v; SaveAccess(context); }" Color="Color.Info" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanDelete" ValueChanged="(v) => { context.CanDelete = v; SaveAccess(context); }" Color="Color.Error" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanApprove" ValueChanged="(v) => { context.CanApprove = v; SaveAccess(context); }" Color="Color.Warning" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.CanExport" ValueChanged="(v) => { context.CanExport = v; SaveAccess(context); }" Color="Color.Tertiary" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudCheckBox T="bool" Value="@context.OverridesRole" ValueChanged="(v) => { context.OverridesRole = v; SaveAccess(context); }" Color="Color.Dark" />
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="() => DeleteAccess(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter] public long UserId { get; set; }
+
+    private string userName = "";
+    private bool loading = true;
+    private List<UserPageAccessDto> accessList = new();
+    private List<AvailablePageDto> availablePages = new();
+
+    private TableGroupDefinition<UserPageAccessDto> _groupDef = new()
+    {
+        GroupName = "Module",
+        Indentation = false,
+        Expandable = true,
+        IsInitiallyExpanded = true,
+        Selector = (e) => e.ModuleName ?? "Other"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+
+        var userTask = SystemService.GetUserByIdAsync(UserId);
+        var accessTask = SystemService.GetUserPageAccessAsync(UserId);
+        var pagesTask = SystemService.GetAvailablePagesAsync();
+
+        await Task.WhenAll(userTask, accessTask, pagesTask);
+
+        userName = userTask.Result?.UserName ?? $"User #{UserId}";
+        accessList = accessTask.Result;
+        availablePages = pagesTask.Result;
+
+        loading = false;
+    }
+
+    private async void SaveAccess(UserPageAccessDto access)
+    {
+        await SystemService.SaveUserPageAccessAsync(new SaveUserPageAccessRequest
+        {
+            UserId = access.UserId,
+            PageId = access.PageId,
+            CompanyId = access.CompanyId,
+            CanView = access.CanView,
+            CanCreate = access.CanCreate,
+            CanEdit = access.CanEdit,
+            CanDelete = access.CanDelete,
+            CanApprove = access.CanApprove,
+            CanExport = access.CanExport,
+            OverridesRole = access.OverridesRole
+        });
+        // Silent save — no snackbar on each toggle for UX
+    }
+
+    private async Task DeleteAccess(UserPageAccessDto access)
+    {
+        var success = await SystemService.DeleteUserPageAccessAsync(access.Id);
+        if (success)
+        {
+            Snackbar.Add($"Removed access for '{access.PageName}'", Severity.Success);
+            accessList.Remove(access);
+        }
+        else Snackbar.Add("Failed to remove", Severity.Error);
+    }
+
+    private async Task OpenAddPageDialog()
+    {
+        var existingPageIds = accessList.Select(a => a.PageId).ToHashSet();
+        var newPages = availablePages.Where(p => !existingPageIds.Contains(p.Id)).ToList();
+
+        if (!newPages.Any())
+        {
+            Snackbar.Add("All pages already have access overrides configured", Severity.Info);
+            return;
+        }
+
+        var parameters = new DialogParameters<AddPageAccessDialog>
+        {
+            { x => x.AvailablePages, newPages },
+            { x => x.UserId, UserId }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AddPageAccessDialog>("Add Page Access Override", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadData();
+    }
+}

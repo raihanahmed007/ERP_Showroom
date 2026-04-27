@@ -1,0 +1,62 @@
+@using MudBlazor
+@using ErpShowroom.Client.Services
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.PlaylistAdd" Class="mr-3 mb-n1" />
+            Add Pages to Role
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="search" Placeholder="Filter pages..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Class="mb-3" />
+
+        <div style="max-height: 400px; overflow-y: auto;">
+            @foreach (var group in filteredPages.GroupBy(p => p.ModuleName ?? "Other").OrderBy(g => g.Key))
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1"><b>@group.Key</b></MudText>
+                @foreach (var pg in group)
+                {
+                    <div class="d-flex align-center justify-space-between py-1 px-2" style="border-bottom: 1px solid rgba(0,0,0,0.08);">
+                        <MudCheckBox T="bool" Value="@selectedPageIds.Contains(pg.Id)"
+                                     ValueChanged="@((v) => TogglePage(pg.Id, v))"
+                                     Label="@pg.PageName" Dense="true" />
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@pg.RouteUrl</MudChip>
+                    </div>
+                }
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit"
+                   Disabled="@(!selectedPageIds.Any())">
+            Add @selectedPageIds.Count Page(s)
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public List<AvailablePageDto> AvailablePages { get; set; } = new();
+
+    private string search = "";
+    private HashSet<long> selectedPageIds = new();
+
+    private IEnumerable<AvailablePageDto> filteredPages => string.IsNullOrWhiteSpace(search)
+        ? AvailablePages
+        : AvailablePages.Where(p =>
+            (p.PageName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.ModuleName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.RouteUrl?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    private void TogglePage(long pageId, bool selected)
+    {
+        if (selected) selectedPageIds.Add(pageId);
+        else selectedPageIds.Remove(pageId);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+    private void Submit() => MudDialog.Close(DialogResult.Ok(selectedPageIds));
+}

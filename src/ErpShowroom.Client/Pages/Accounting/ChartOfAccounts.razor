@@ -1,0 +1,199 @@
+@page "/accounting/coa"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services.acc
+@using ErpShowroom.Application.acc.DTOs
+@using ErpShowroom.Application.acc.Commands
+@using ErpShowroom.Domain.acc.Entities
+@using ErpShowroom.Domain.Common
+@inject IAccountingService AccService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <MudText Typo="Typo.h4">Chart of Accounts & Ledger Registry</MudText>
+    <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenAccountDialog(null))">Add New Account</MudButton>
+</div>
+
+<MudGrid>
+    <MudItem xs="12" md="5">
+        <MudText Typo="Typo.h6" Class="mb-2">Hierarchical Tree View</MudText>
+        <MudPaper Class="pa-4" Style="max-height: 700px; overflow-y: auto;">
+            <MudTreeView Items="@TreeItems" T="ChartOfAccountDto" Hover="true">
+                <ItemTemplate>
+                    <MudTreeViewItem @bind-Expanded="@context.Expanded" Items="@context.Children" Value="@context.Value">
+                        <Content>
+                            <div class="d-flex align-center w-100">
+                                <MudText Typo="Typo.body2">@context.Value?.AccountCode - @context.Value?.AccountName</MudText>
+                                @if (context.Value?.IsHead ?? false)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="MudBlazor.Color.Info" Class="ml-2">Head</MudChip>
+                                    <span @onclick:stopPropagation="true">
+                                        <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="MudBlazor.Color.Success" Size="Size.Small" OnClick="@(() => OpenAccountDialog(new ChartOfAccount { ParentAccountId = context.Value.Id, AccountType = context.Value.AccountType, IsHead = false }))" Class="ml-auto" />
+                                    </span>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="MudBlazor.Color.Default" Class="ml-2">Ledger</MudChip>
+                                }
+                            </div>
+                        </Content>
+                    </MudTreeViewItem>
+                </ItemTemplate>
+            </MudTreeView>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="7">
+        <MudText Typo="Typo.h6" Class="mb-2">Manage All Ledgers (Flat List)</MudText>
+        <MudTable Items="@accounts" Hover="true" Dense="true" Striped="true" Filter="new Func<ChartOfAccountDto,bool>(FilterFunc)" FixedHeader="true" Height="650px">
+            <ToolBarContent>
+                <MudTextField @bind-Value="searchString" Placeholder="Search by Code or Name..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Code</MudTh>
+                <MudTh>Account Name</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh Style="text-align:right">Opening</MudTh>
+                <MudTh Style="width: 100px; text-align:center">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Code">@context.AccountCode</MudTd>
+                <MudTd DataLabel="Name">@context.AccountName</MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Color="@GetAccountTypeColor(context.AccountType)" Variant="Variant.Text">@context.AccountType</MudChip>
+                </MudTd>
+                <MudTd Style="text-align:right">@context.OpeningBalance?.ToString("N2")</MudTd>
+                <MudTd Style="text-align:center">
+                    <div class="d-flex justify-center">
+                        @if (!IsProtected(context.AccountCode))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="MudBlazor.Color.Primary" Size="Size.Small" OnClick="@(() => EditAccount(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="MudBlazor.Color.Error" Size="Size.Small" OnClick="@(() => DeleteAccount(context))" />
+                        }
+                        else
+                        {
+                            <MudTooltip Text="System Protected Account">
+                                <MudIcon Icon="@Icons.Material.Filled.Lock" Color="MudBlazor.Color.Default" Size="Size.Small" Class="ma-2" />
+                            </MudTooltip>
+                        }
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudItem>
+</MudGrid>
+
+
+@code {
+    List<MudBlazor.TreeItemData<ChartOfAccountDto>> TreeItems = new();
+    List<ChartOfAccountDto> accounts = new();
+    string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+    }
+
+    async Task LoadAccounts()
+    {
+        accounts = await AccService.GetAccountsAsync();
+        BuildTree();
+    }
+
+    void BuildTree()
+    {
+        var rootAccounts = accounts.Where(a => a.ParentAccountId == null).ToList();
+        TreeItems = rootAccounts.Select(a => MapToTreeItem(a)).ToList();
+    }
+
+    MudBlazor.TreeItemData<ChartOfAccountDto> MapToTreeItem(ChartOfAccountDto account)
+    {
+        var item = new MudBlazor.TreeItemData<ChartOfAccountDto> { Value = account, Expanded = false };
+        var children = accounts.Where(a => a.ParentAccountId == account.Id).ToList();
+        if (children.Any())
+        {
+            item.Children = children.Select(c => MapToTreeItem(c)).ToList();
+        }
+        return item;
+    }
+
+    private bool FilterFunc(ChartOfAccountDto element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (element.AccountName.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.AccountCode.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    async Task OpenAccountDialog(ChartOfAccount? model)
+    {
+        var parameters = new DialogParameters<AccountDialog>();
+        if (model == null)
+        {
+            parameters.Add(x => x.Account, new ChartOfAccount { CurrencyCode = "BDT", IsHead = true });
+        }
+        else
+        {
+            parameters.Add(x => x.Account, model);
+        }
+        parameters.Add(x => x.AllAccounts, accounts);
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AccountDialog>("Manage Account", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadAccounts();
+        }
+    }
+
+    async Task EditAccount(ChartOfAccountDto dto)
+    {
+        var model = new ChartOfAccount
+        {
+            Id = dto.Id,
+            AccountCode = dto.AccountCode,
+            AccountName = dto.AccountName,
+            AccountType = dto.AccountType,
+            ParentAccountId = dto.ParentAccountId,
+            IsHead = dto.IsHead,
+            OpeningBalance = dto.OpeningBalance,
+            CurrencyCode = "BDT"
+        };
+        await OpenAccountDialog(model);
+    }
+
+
+    async Task DeleteAccount(ChartOfAccountDto dto)
+    {
+        bool? result = await DialogService.ShowMessageBox("Delete Account", $"Are you sure you want to delete {dto.AccountName}?", "Delete", cancelText: "Cancel");
+        if (result == true)
+        {
+            bool success = await AccService.DeleteAccountAsync(dto.Id);
+            if (success)
+            {
+                Snackbar.Add("Account deleted", Severity.Success);
+                await LoadAccounts();
+            }
+            else Snackbar.Add("Error deleting account (check if it has transactions)", Severity.Error);
+        }
+    }
+
+    MudBlazor.Color GetAccountTypeColor(AccountTypeEnum? type) => type switch
+    {
+        AccountTypeEnum.Asset => MudBlazor.Color.Primary,
+        AccountTypeEnum.Liability => MudBlazor.Color.Error,
+        AccountTypeEnum.Equity => MudBlazor.Color.Success,
+        AccountTypeEnum.Income => MudBlazor.Color.Info,
+        AccountTypeEnum.Expense => MudBlazor.Color.Warning,
+        _ => MudBlazor.Color.Default
+    };
+
+    private readonly string[] protectedCodes = { "1000", "2000", "3000", "4000", "5000" };
+    private bool IsProtected(string? code) => code != null && protectedCodes.Contains(code);
+}

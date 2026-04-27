@@ -1,0 +1,191 @@
+@page "/system/users"
+@attribute [Authorize]
+@using MudBlazor
+@using ErpShowroom.Client.Services
+@inject ISystemService SystemService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+
+<div class="d-flex align-center justify-space-between mb-4">
+    <div>
+        <MudText Typo="Typo.h4">User Management</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Create, edit, and manage system users</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenCreateDialog">Add New User</MudButton>
+</div>
+
+<MudTable Items="@users" Hover="true" Dense="true" Striped="true" Loading="@loading"
+          Filter="new Func<UserListDto, bool>(FilterFunc)" FixedHeader="true" Height="650px">
+    <ToolBarContent>
+        <MudTextField @bind-Value="searchString" Placeholder="Search by name, email..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" />
+        <MudSpacer />
+        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">@users.Count Users</MudChip>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Username</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Phone</MudTh>
+        <MudTh>Roles</MudTh>
+        <MudTh Style="text-align:center">Status</MudTh>
+        <MudTh Style="width: 200px; text-align:center">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Username">
+            <MudText Typo="Typo.body2"><b>@context.UserName</b></MudText>
+        </MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Phone">@context.Phone</MudTd>
+        <MudTd DataLabel="Roles">
+            @if (context.Roles?.Any() == true)
+            {
+                @foreach (var role in context.Roles)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Info" Class="mr-1">@role.RoleName</MudChip>
+                }
+            }
+            else
+            {
+                <MudText Typo="Typo.caption" Color="Color.Warning">No roles</MudText>
+            }
+        </MudTd>
+        <MudTd Style="text-align:center">
+            @if (context.LockoutEnd.HasValue && context.LockoutEnd > DateTime.UtcNow)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">Locked</MudChip>
+            }
+            else if (context.IsActive == true)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Active</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Filled">Inactive</MudChip>
+            }
+        </MudTd>
+        <MudTd Style="text-align:center">
+            <MudTooltip Text="Edit User">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                               OnClick="@(() => OpenEditDialog(context))" />
+            </MudTooltip>
+            <MudTooltip Text="Assign Roles">
+                <MudIconButton Icon="@Icons.Material.Filled.Security" Color="Color.Info" Size="Size.Small"
+                               OnClick="@(() => Nav.NavigateTo($"/system/assign-roles/{context.Id}"))" />
+            </MudTooltip>
+            <MudTooltip Text="Page Access Overrides">
+                <MudIconButton Icon="@Icons.Material.Filled.VpnKey" Color="Color.Warning" Size="Size.Small"
+                               OnClick="@(() => Nav.NavigateTo($"/system/user-access/{context.Id}"))" />
+            </MudTooltip>
+            <MudTooltip Text="Report Permissions">
+                <MudIconButton Icon="@Icons.Material.Filled.Assessment" Color="Color.Secondary" Size="Size.Small"
+                               OnClick="@(() => Nav.NavigateTo($"/system/report-permissions/{context.Id}"))" />
+            </MudTooltip>
+            <MudTooltip Text="Reset Password">
+                <MudIconButton Icon="@Icons.Material.Filled.LockReset" Color="Color.Tertiary" Size="Size.Small"
+                               OnClick="@(() => ResetPassword(context))" />
+            </MudTooltip>
+            @if (context.LockoutEnd.HasValue && context.LockoutEnd > DateTime.UtcNow)
+            {
+                <MudTooltip Text="Unlock Account">
+                    <MudIconButton Icon="@Icons.Material.Filled.LockOpen" Color="Color.Success" Size="Size.Small"
+                                   OnClick="@(() => UnlockUser(context))" />
+                </MudTooltip>
+            }
+            <MudTooltip Text="Delete User">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="@(() => DeleteUser(context))" />
+            </MudTooltip>
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private List<UserListDto> users = new();
+    private string searchString = "";
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        loading = true;
+        users = await SystemService.GetUsersAsync();
+        loading = false;
+    }
+
+    private bool FilterFunc(UserListDto user)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (user.UserName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
+        if (user.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
+        if (user.Phone?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
+        return false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<UserDialog> { { x => x.IsEdit, false } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserDialog>("Create User", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadUsers();
+    }
+
+    private async Task OpenEditDialog(UserListDto user)
+    {
+        var parameters = new DialogParameters<UserDialog>
+        {
+            { x => x.IsEdit, true },
+            { x => x.UserId, user.Id },
+            { x => x.UserName, user.UserName ?? "" },
+            { x => x.Email, user.Email ?? "" },
+            { x => x.Phone, user.Phone ?? "" },
+            { x => x.EmployeeId, user.EmployeeId },
+            { x => x.IsActive, user.IsActive ?? true }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserDialog>("Edit User", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadUsers();
+    }
+
+    private async Task ResetPassword(UserListDto user)
+    {
+        var parameters = new DialogParameters<ResetPasswordDialog> { { x => x.UserName, user.UserName ?? "" }, { x => x.UserId, user.Id } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ResetPasswordDialog>("Reset Password", parameters, options);
+        await dialog.Result;
+    }
+
+    private async Task UnlockUser(UserListDto user)
+    {
+        var confirm = await DialogService.ShowMessageBox("Unlock Account",
+            $"Unlock the account for {user.UserName}?", "Unlock", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            var success = await SystemService.UnlockUserAsync(user.Id);
+            Snackbar.Add(success ? "Account unlocked" : "Failed to unlock", success ? Severity.Success : Severity.Error);
+            if (success) await LoadUsers();
+        }
+    }
+
+    private async Task DeleteUser(UserListDto user)
+    {
+        var confirm = await DialogService.ShowMessageBox("Delete User",
+            $"Are you sure you want to delete user '{user.UserName}'? This action cannot be undone.", "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            var success = await SystemService.DeleteUserAsync(user.Id);
+            Snackbar.Add(success ? "User deleted" : "Failed to delete user", success ? Severity.Success : Severity.Error);
+            if (success) await LoadUsers();
+        }
+    }
+}

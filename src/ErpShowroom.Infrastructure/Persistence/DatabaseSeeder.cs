@@ -1,8 +1,10 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using ErpShowroom.Domain.sys.Entities;
+using ErpShowroom.Domain.acc.Entities;
+using ErpShowroom.Domain.Common;
 
 namespace ErpShowroom.Infrastructure.Persistence;
 
@@ -10,98 +12,67 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(AppDbContext context)
     {
-        await SeedCoreAsync(context);
-        await SeedTestDataFromScriptAsync(context);
+        await SeedAccountingDataAsync(context);
     }
 
-    private static async Task SeedCoreAsync(AppDbContext context)
+    private static async Task SeedAccountingDataAsync(AppDbContext context)
     {
-        // 1. Core Roles
-        var roles = new[] { "SuperAdmin", "FinanceManager", "Collector", "WorkshopTech", "HRManager" };
-        foreach (var r in roles)
-        {
-            if (!await context.Roles.AnyAsync(x => x.RoleName == r))
-                context.Roles.Add(new Role { RoleName = r, RoleCode = r.ToUpper(), IsActive = true });
-        }
+        if (await context.ChartOfAccounts.AnyAsync(a => a.AccountCode == "1000")) return;
+
+        // 1. Root Heads
+        var assets = new ChartOfAccount { AccountCode = "1000", AccountName = "ASSETS", AccountType = AccountTypeEnum.Asset, IsHead = true };
+        var liabilities = new ChartOfAccount { AccountCode = "2000", AccountName = "LIABILITIES", AccountType = AccountTypeEnum.Liability, IsHead = true };
+        var equity = new ChartOfAccount { AccountCode = "3000", AccountName = "EQUITY", AccountType = AccountTypeEnum.Equity, IsHead = true };
+        var income = new ChartOfAccount { AccountCode = "4000", AccountName = "INCOME", AccountType = AccountTypeEnum.Income, IsHead = true };
+        var expenses = new ChartOfAccount { AccountCode = "5000", AccountName = "EXPENSES", AccountType = AccountTypeEnum.Expense, IsHead = true };
+
+        context.ChartOfAccounts.AddRange(assets, liabilities, equity, income, expenses);
         await context.SaveChangesAsync();
 
-        // 2. Generic Permissions
-        var modules = new[] { "sys", "acc", "fin", "inv", "prc", "crm", "wrk", "hr", "prl", "doc", "bank", "wf" };
-        var actions = new[] { "create", "read", "update", "delete", "approve" };
+        // 2. Standard Sub-Heads & Ledgers
+        context.ChartOfAccounts.AddRange(
+            // Assets
+            new ChartOfAccount { AccountCode = "1100", AccountName = "Current Assets", AccountType = AccountTypeEnum.Asset, IsHead = true, ParentAccountId = assets.Id },
+            new ChartOfAccount { AccountCode = "1110", AccountName = "Cash in Hand", AccountType = AccountTypeEnum.Asset, IsHead = false, ParentAccountId = assets.Id, OpeningBalance = 50000 },
+            new ChartOfAccount { AccountCode = "1120", AccountName = "Bank Accounts", AccountType = AccountTypeEnum.Asset, IsHead = true, ParentAccountId = assets.Id },
+            new ChartOfAccount { AccountCode = "1121", AccountName = "Dutch Bangla Bank", AccountType = AccountTypeEnum.Asset, IsHead = false, ParentAccountId = assets.Id, OpeningBalance = 1000000 },
+            new ChartOfAccount { AccountCode = "1130", AccountName = "Accounts Receivable", AccountType = AccountTypeEnum.Asset, IsHead = false, ParentAccountId = assets.Id },
+            new ChartOfAccount { AccountCode = "1200", AccountName = "Fixed Assets", AccountType = AccountTypeEnum.Asset, IsHead = true, ParentAccountId = assets.Id },
+            new ChartOfAccount { AccountCode = "1210", AccountName = "Office Equipment", AccountType = AccountTypeEnum.Asset, IsHead = false, ParentAccountId = assets.Id },
+            
+            // Liabilities
+            new ChartOfAccount { AccountCode = "2100", AccountName = "Current Liabilities", AccountType = AccountTypeEnum.Liability, IsHead = true, ParentAccountId = liabilities.Id },
+            new ChartOfAccount { AccountCode = "2110", AccountName = "Accounts Payable", AccountType = AccountTypeEnum.Liability, IsHead = false, ParentAccountId = liabilities.Id },
+            new ChartOfAccount { AccountCode = "2120", AccountName = "Accrued Expenses", AccountType = AccountTypeEnum.Liability, IsHead = false, ParentAccountId = liabilities.Id },
+            
+            // Equity
+            new ChartOfAccount { AccountCode = "3100", AccountName = "Share Capital", AccountType = AccountTypeEnum.Equity, IsHead = false, ParentAccountId = equity.Id },
+            new ChartOfAccount { AccountCode = "3200", AccountName = "Retained Earnings", AccountType = AccountTypeEnum.Equity, IsHead = false, ParentAccountId = equity.Id },
+            
+            // Income
+            new ChartOfAccount { AccountCode = "4100", AccountName = "Product Sales", AccountType = AccountTypeEnum.Income, IsHead = false, ParentAccountId = income.Id },
+            new ChartOfAccount { AccountCode = "4200", AccountName = "Service Income", AccountType = AccountTypeEnum.Income, IsHead = false, ParentAccountId = income.Id },
+            
+            // Expenses
+            new ChartOfAccount { AccountCode = "5100", AccountName = "Cost of Goods Sold", AccountType = AccountTypeEnum.Expense, IsHead = false, ParentAccountId = expenses.Id },
+            new ChartOfAccount { AccountCode = "5200", AccountName = "Administrative Expenses", AccountType = AccountTypeEnum.Expense, IsHead = true, ParentAccountId = expenses.Id },
+            new ChartOfAccount { AccountCode = "5210", AccountName = "Office Rent", AccountType = AccountTypeEnum.Expense, IsHead = false, ParentAccountId = expenses.Id },
+            new ChartOfAccount { AccountCode = "5220", AccountName = "Salaries & Wages", AccountType = AccountTypeEnum.Expense, IsHead = false, ParentAccountId = expenses.Id }
+        );
 
-        foreach (var m in modules)
+        // 3. Seed an Open Fiscal Period
+        if (!await context.FiscalPeriods.AnyAsync())
         {
-            foreach (var a in actions)
+            context.FiscalPeriods.Add(new FiscalPeriod
             {
-                var key = $"{m}.{a}";
-                if (!await context.Permissions.AnyAsync(x => x.PermissionKey == key))
-                {
-                    context.Permissions.Add(new Permission { ModuleName = m, ActionName = a, PermissionKey = key, IsActive = true });
-                }
-            }
+                PeriodName = "FY 2024-25",
+                StartDate = new DateTime(2024, 7, 1),
+                EndDate = new DateTime(2025, 6, 30),
+                IsClosed = false,
+                CreatedAt = DateTime.UtcNow
+            });
         }
 
-        // Module-specific overrides
-        var specificPerms = new[]
-        {
-            new { Module = "fin", Action = "agreements.approve", Key = "fin.agreements.approve" },
-            new { Module = "fin", Action = "emi.collect", Key = "fin.emi.collect" }
-        };
-        foreach (var sp in specificPerms)
-        {
-            if (!await context.Permissions.AnyAsync(x => x.PermissionKey == sp.Key))
-            {
-                context.Permissions.Add(new Permission { ModuleName = sp.Module, ActionName = sp.Action, PermissionKey = sp.Key, IsActive = true });
-            }
-        }
         await context.SaveChangesAsync();
-
-        // 3. Connect SuperAdmin to all Permissions securely
-        var superAdmin = await context.Roles.FirstAsync(r => r.RoleName == "SuperAdmin");
-        var allPerms = await context.Permissions.ToListAsync();
-
-        foreach (var p in allPerms)
-        {
-            if (!await context.RolePermissions.AnyAsync(rp => rp.RoleId == superAdmin.Id && rp.PermissionId == p.Id))
-                context.RolePermissions.Add(new RolePermission { RoleId = superAdmin.Id, PermissionId = p.Id, IsActive = true });
-        }
-        await context.SaveChangesAsync();
-
-        // 4. Provision Root Developer User mapped with BCrypt
-        if (!await context.Users.AnyAsync(u => u.UserName == "admin"))
-        {
-            var adminUser = new User
-            {
-                UserName = "admin",
-                NormalizedUserName = "ADMIN",
-                Email = "admin@himumotors.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123", 12), // Seed Hashed Password with work factor 12
-                IsActive = true
-            };
-            context.Users.Add(adminUser);
-            await context.SaveChangesAsync();
-
-            context.UserRoles.Add(new UserRole { UserId = adminUser.Id, RoleId = superAdmin.Id, IsActive = true });
-            await context.SaveChangesAsync();
-        }
-    }
-
-    private static async Task SeedTestDataFromScriptAsync(AppDbContext context)
-    {
-        const string seedFileName = "seed_all_tables.sql";
-        var scriptPath = Path.Combine(AppContext.BaseDirectory, seedFileName);
-        if (!File.Exists(scriptPath))
-        {
-            scriptPath = Path.Combine(Directory.GetCurrentDirectory(), seedFileName);
-        }
-
-        if (!File.Exists(scriptPath))
-            return;
-
-        var sql = await File.ReadAllTextAsync(scriptPath);
-        if (string.IsNullOrWhiteSpace(sql))
-            return;
-
-        await context.Database.ExecuteSqlRawAsync(sql);
     }
 }
